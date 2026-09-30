@@ -2,77 +2,41 @@
 
 // スプレンダー風のカード・貴族のデータ。
 //
-// 発展カード 90 枚（レベル1: 40枚、レベル2: 30枚、レベル3: 20枚）は、
-// 色ごとに同じ「型」を回して作る（本家もボーナス色を回転させて色ごとの枚数をそろえている）。
-// ponytail: 値段・点数の細かい数値は公式資料を見ずに記憶から再現した近似値。
-// 枚数（40/30/20、色ごとの枚数）は仕様どおりに固定してある。正確な値を使いたければ
-// 公式のカードを見て TEMPLATES を差し替える。
+// 発展カード 90 枚と貴族 10 枚は公式と同じ中身。値段は 白・青・緑・赤・黒 の順。
 const COLORS = ['white', 'blue', 'green', 'red', 'black'];
 const COLOR_LABEL = { white: '白', blue: '青', green: '緑', red: '赤', black: '黒', gold: '金' };
 
-// offset (1〜4) はボーナス色から色の輪（COLORS の並び）で何番目の色かを表す。
-function costFromOffsets(bonusIndex, offsets) {
+// [レベル, ボーナス色, 点数, 白, 青, 緑, 赤, 黒]
+const CARD_TABLE = `
+1 black 0 1 1 1 1 0|1 black 0 1 2 1 1 0|1 black 0 2 2 0 1 0|1 black 0 0 0 1 3 1|1 black 0 0 0 2 1 0|1 black 0 2 0 2 0 0|1 black 0 0 0 3 0 0|1 black 1 0 4 0 0 0
+1 blue 0 1 0 1 1 1|1 blue 0 1 0 1 2 1|1 blue 0 1 0 2 2 0|1 blue 0 0 1 3 1 0|1 blue 0 1 0 0 0 2|1 blue 0 0 0 2 0 2|1 blue 0 0 0 0 0 3|1 blue 1 0 0 0 4 0
+1 white 0 0 1 1 1 1|1 white 0 0 1 2 1 1|1 white 0 0 2 2 0 1|1 white 0 3 1 0 0 1|1 white 0 0 0 0 2 1|1 white 0 0 2 0 0 2|1 white 0 0 3 0 0 0|1 white 1 0 0 4 0 0
+1 green 0 1 1 0 1 1|1 green 0 1 1 0 1 2|1 green 0 0 1 0 2 2|1 green 0 1 3 1 0 0|1 green 0 2 1 0 0 0|1 green 0 0 2 0 2 0|1 green 0 0 0 0 3 0|1 green 1 0 0 0 0 4
+1 red 0 1 1 1 0 1|1 red 0 2 1 1 0 1|1 red 0 2 0 1 0 2|1 red 0 1 0 0 1 3|1 red 0 0 2 1 0 0|1 red 0 2 0 0 2 0|1 red 0 3 0 0 0 0|1 red 1 4 0 0 0 0
+2 black 1 3 2 2 0 0|2 black 1 3 0 3 0 2|2 black 2 0 1 4 2 0|2 black 2 0 0 5 3 0|2 black 2 5 0 0 0 0|2 black 3 0 0 0 0 6
+2 blue 1 0 2 2 3 0|2 blue 1 0 2 3 0 3|2 blue 2 5 3 0 0 0|2 blue 2 2 0 0 1 4|2 blue 2 0 5 0 0 0|2 blue 3 0 6 0 0 0
+2 white 1 0 0 3 2 2|2 white 1 2 3 0 3 0|2 white 2 0 0 1 4 2|2 white 2 0 0 0 5 3|2 white 2 0 0 0 5 0|2 white 3 6 0 0 0 0
+2 green 1 3 0 2 3 0|2 green 1 2 3 0 0 2|2 green 2 4 2 0 0 1|2 green 2 0 5 3 0 0|2 green 2 0 0 5 0 0|2 green 3 0 0 6 0 0
+2 red 1 2 0 0 2 3|2 red 1 0 3 0 2 3|2 red 2 1 4 2 0 0|2 red 2 3 0 0 0 5|2 red 2 0 0 0 0 5|2 red 3 0 0 0 6 0
+3 black 3 3 3 5 3 0|3 black 4 0 0 0 7 0|3 black 4 0 0 3 6 3|3 black 5 0 0 0 7 3
+3 blue 3 3 0 3 3 5|3 blue 4 7 0 0 0 0|3 blue 4 6 3 0 0 3|3 blue 5 7 3 0 0 0
+3 white 3 0 3 3 5 3|3 white 4 0 0 0 0 7|3 white 4 3 0 0 3 6|3 white 5 3 0 0 0 7
+3 green 3 5 3 0 3 3|3 green 4 0 7 0 0 0|3 green 4 3 6 3 0 0|3 green 5 0 7 3 0 0
+3 red 3 3 5 3 0 3|3 red 4 0 0 7 0 0|3 red 4 0 3 6 3 0|3 red 5 0 0 7 3 0`;
+
+const CARDS = CARD_TABLE.trim().split(/[|\n]/).map((row, i) => {
+  const [level, bonus, points, ...nums] = row.trim().split(' ');
   const cost = {};
-  for (const [off, n] of Object.entries(offsets)) {
-    const idx = (bonusIndex + Number(off)) % COLORS.length;
-    cost[COLORS[idx]] = n;
-  }
-  return cost;
-}
+  nums.forEach((n, k) => { if (+n) cost[COLORS[k]] = +n; });
+  return { id: `c${i}`, level: +level, bonus, points: +points, cost };
+});
 
-const LEVEL1_TEMPLATES = [
-  [{ 1: 1, 2: 1, 3: 1, 4: 1 }, 0],
-  [{ 1: 1, 2: 2, 3: 1, 4: 1 }, 0],
-  [{ 2: 2, 3: 2, 4: 1 }, 0],
-  [{ 1: 2, 3: 2, 4: 1 }, 0],
-  [{ 1: 3, 2: 1 }, 0],
-  [{ 3: 1, 4: 4 }, 0],
-  [{ 1: 4 }, 0],
-  [{ 2: 3, 4: 2 }, 1],
-];
-const LEVEL2_TEMPLATES = [
-  [{ 1: 2, 2: 3 }, 1],
-  [{ 2: 1, 3: 4, 4: 2 }, 1],
-  [{ 1: 5 }, 2],
-  [{ 1: 3, 3: 3, 4: 2 }, 2],
-  [{ 2: 5 }, 2],
-  [{ 3: 6 }, 3],
-];
-const LEVEL3_TEMPLATES = [
-  [{ 1: 3, 2: 3, 3: 5 }, 3],
-  [{ 2: 7 }, 4],
-  [{ 1: 3, 3: 6, 4: 3 }, 4],
-  [{ 4: 7 }, 5],
-];
-
-function buildLevel(level, templates) {
-  const cards = [];
-  let n = 0;
-  for (let bonusIndex = 0; bonusIndex < COLORS.length; bonusIndex++) {
-    const bonus = COLORS[bonusIndex];
-    for (const [offsets, points] of templates) {
-      cards.push({ id: `l${level}-${n++}`, level, bonus, points, cost: costFromOffsets(bonusIndex, offsets) });
-    }
-  }
-  return cards;
-}
-
-const CARDS = [
-  ...buildLevel(1, LEVEL1_TEMPLATES),
-  ...buildLevel(2, LEVEL2_TEMPLATES),
-  ...buildLevel(3, LEVEL3_TEMPLATES),
-];
-
-// 貴族 10 枚: 5 色から 3 色を選ぶ組み合わせ（ちょうど 10 通り）。どれも 3 点、各色 3 枚。
+// 貴族 10 枚（公式）: 輪で隣り合う 2 色を 4 枚ずつが 5 枚、続く 3 色を 3 枚ずつが 5 枚。どれも 3 点。
 const NOBLES = [];
-for (let a = 0; a < COLORS.length; a++) {
-  for (let b = a + 1; b < COLORS.length; b++) {
-    for (let c = b + 1; c < COLORS.length; c++) {
-      const req = {};
-      req[COLORS[a]] = 3; req[COLORS[b]] = 3; req[COLORS[c]] = 3;
-      NOBLES.push({ id: `n${NOBLES.length}`, points: 3, req });
-    }
-  }
+for (let i = 0; i < COLORS.length; i++) {
+  const c = (k) => COLORS[(i + k) % COLORS.length];
+  NOBLES.push({ id: `n${NOBLES.length}`, points: 3, req: { [c(0)]: 4, [c(1)]: 4 } });
+  NOBLES.push({ id: `n${NOBLES.length}`, points: 3, req: { [c(0)]: 3, [c(1)]: 3, [c(2)]: 3 } });
 }
 
 // ---- 枚数の検算（RULES.md どおり: 40/30/20、色ごと 8/6/4、貴族 10） ----
