@@ -22,9 +22,15 @@ if ('serviceWorker' in navigator) {
 
 // ---- ここからアプリ本体 ----
 // 身内用の試作: 設定・効果音・共有演出・CPU は入れない（1 台を回して遊ぶホットシート）。
-const { COLORS, COLOR_LABEL, CARDS, NOBLES, TOKEN_COUNT_BY_PLAYERS } = window.GEM_TRADE_DATA;
-const CARD_BY_ID = Object.fromEntries(CARDS.map((c) => [c.id, c]));
-const NOBLE_BY_ID = Object.fromEntries(NOBLES.map((n) => [n.id, n]));
+// data.js も素の <script>（同じトップレベルのスコープ）を使うので、同じ名前の const を
+// 二重に宣言できない（COLORS・CARDS・NOBLES は data.js 側の名前）。別名で受け取る。
+const GT = window.GEM_TRADE_DATA;
+const CLR = GT.COLORS;
+const CARD_LIST = GT.CARDS;
+const NOBLE_LIST = GT.NOBLES;
+const TOKENS_PER_PLAYER_COUNT = GT.TOKEN_COUNT_BY_PLAYERS;
+const CARD_BY_ID = Object.fromEntries(CARD_LIST.map((c) => [c.id, c]));
+const NOBLE_BY_ID = Object.fromEntries(NOBLE_LIST.map((n) => [n.id, n]));
 const stage = document.getElementById('stage');
 
 function shuffle(arr) {
@@ -36,12 +42,12 @@ function shuffle(arr) {
   return a;
 }
 function emptyTokens() { return { white: 0, blue: 0, green: 0, red: 0, black: 0, gold: 0 }; }
-function sumTokens(t) { return COLORS.reduce((s, c) => s + t[c], 0) + t.gold; }
+function sumTokens(t) { return CLR.reduce((s, c) => s + t[c], 0) + t.gold; }
 
 function newGame(numPlayers) {
-  const perColor = TOKEN_COUNT_BY_PLAYERS[numPlayers];
+  const perColor = TOKENS_PER_PLAYER_COUNT[numPlayers];
   const bank = emptyTokens();
-  for (const c of COLORS) bank[c] = perColor;
+  for (const c of CLR) bank[c] = perColor;
   bank.gold = 5;
 
   const decks = { 1: [], 2: [], 3: [] };
@@ -86,20 +92,20 @@ function persist() { save('state', state); render(); }
 
 function effectiveCost(card, player) {
   const cost = {};
-  for (const c of COLORS) cost[c] = Math.max(0, (card.cost[c] || 0) - player.bonuses[c]);
+  for (const c of CLR) cost[c] = Math.max(0, (card.cost[c] || 0) - player.bonuses[c]);
   return cost;
 }
 function canAfford(card, player) {
   const cost = effectiveCost(card, player);
   let goldNeed = 0;
-  for (const c of COLORS) goldNeed += Math.max(0, cost[c] - player.tokens[c]);
+  for (const c of CLR) goldNeed += Math.max(0, cost[c] - player.tokens[c]);
   return goldNeed <= player.tokens.gold;
 }
 function payFor(card, player) {
   const cost = effectiveCost(card, player);
   const paid = emptyTokens();
   let goldNeed = 0;
-  for (const c of COLORS) {
+  for (const c of CLR) {
     const pay = Math.min(cost[c], player.tokens[c]);
     paid[c] = pay;
     goldNeed += cost[c] - pay;
@@ -201,7 +207,7 @@ function doBuy(cardId, fromBoardLevel) {
   const card = CARD_BY_ID[cardId];
   if (!canAfford(card, player)) return;
   const paid = payFor(card, player);
-  for (const c of COLORS) { player.tokens[c] -= paid[c]; state.bank[c] += paid[c]; }
+  for (const c of CLR) { player.tokens[c] -= paid[c]; state.bank[c] += paid[c]; }
   player.tokens.gold -= paid.gold; state.bank.gold += paid.gold;
   player.bonuses[card.bonus]++;
   player.bought.push(cardId);
@@ -251,7 +257,7 @@ function selectionIsValid() {
   if (sel.length === 0) return false;
   const uniq = new Set(sel);
   if (uniq.size === 1) return sel.length === 2 && state.bank[sel[0]] >= 4;
-  const availableColors = COLORS.filter((c) => state.bank[c] > 0).length;
+  const availableColors = CLR.filter((c) => state.bank[c] > 0).length;
   return sel.length === Math.min(3, availableColors) && uniq.size === sel.length;
 }
 
@@ -261,7 +267,7 @@ function tokenDot(color, n) {
   return `<span class="tok tok--${color}"><span class="tok__n">${n}</span></span>`;
 }
 function cardCostHtml(cost) {
-  return COLORS.filter((c) => cost[c] > 0).map((c) => tokenDot(c, cost[c])).join('') || '<span class="cost-free">無料</span>';
+  return CLR.filter((c) => cost[c] > 0).map((c) => tokenDot(c, cost[c])).join('') || '<span class="cost-free">無料</span>';
 }
 function cardHtml(card, { clickable = true } = {}) {
   if (!card) return '<div class="card card--back"></div>';
@@ -331,15 +337,15 @@ function renderDiscard() {
     <div class="modal">
       <h3>${player.name}: トークンを ${state.pendingDiscard.need} 枚戻す</h3>
       <div class="modal__tokens">
-        ${[...COLORS, 'gold'].filter((c) => player.tokens[c] > 0).map((c) => `<button class="tok-btn" data-discard="${c}">${tokenDot(c, player.tokens[c])}</button>`).join('')}
+        ${[...CLR, 'gold'].filter((c) => player.tokens[c] > 0).map((c) => `<button class="tok-btn" data-discard="${c}">${tokenDot(c, player.tokens[c])}</button>`).join('')}
       </div>
     </div>`;
   stage.querySelectorAll('[data-discard]').forEach((el) => el.addEventListener('click', () => doDiscard(el.dataset.discard)));
 }
 
 function playerSummary(p, idx, { isCurrent }) {
-  const bonusHtml = COLORS.filter((c) => p.bonuses[c] > 0).map((c) => tokenDot(c, p.bonuses[c])).join('');
-  const tokenHtml = [...COLORS, 'gold'].filter((c) => p.tokens[c] > 0).map((c) => tokenDot(c, p.tokens[c])).join('');
+  const bonusHtml = CLR.filter((c) => p.bonuses[c] > 0).map((c) => tokenDot(c, p.bonuses[c])).join('');
+  const tokenHtml = [...CLR, 'gold'].filter((c) => p.tokens[c] > 0).map((c) => tokenDot(c, p.tokens[c])).join('');
   return `
     <div class="player ${isCurrent ? 'player--current' : ''}">
       <div class="player__head"><strong>${p.name}</strong><span class="player__pts">${p.points} 点</span></div>
@@ -353,7 +359,7 @@ function playerSummary(p, idx, { isCurrent }) {
 
 function renderBoard() {
   const player = state.players[state.current];
-  const availableColors = COLORS.filter((c) => state.bank[c] > 0);
+  const availableColors = CLR.filter((c) => state.bank[c] > 0);
   const sel = state.selection.take;
   const takeValid = selectionIsValid();
 
@@ -368,7 +374,7 @@ function renderBoard() {
         </div>`).join('')}
 
       <div class="tokens">
-        ${[...COLORS, 'gold'].map((c) => `
+        ${[...CLR, 'gold'].map((c) => `
           <button class="tok-btn ${c === 'gold' ? 'tok-btn--gold' : ''} ${sel.includes(c) ? 'tok-btn--sel' : ''}" data-take="${c}" ${c === 'gold' || state.bank[c] === 0 ? 'disabled' : ''}>
             ${tokenDot(c, state.bank[c])}
           </button>`).join('')}
