@@ -1,0 +1,146 @@
+:root {
+  --bg: #1c2333;
+  --fg: #eceef3;
+  --muted: #9aa0ab;
+  --accent: #ffd35c;
+}
+
+* { box-sizing: border-box; }
+
+/* Safari 26 の上下バーの色は html の背景から取られる。body と同じ色にしておく */
+html { background-color: var(--bg); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+
+/* 画面の端に置くものはセーフエリアの分だけ内側に。高さは 100vh ではなく 100dvh */
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
+}
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bar__title { margin: 0; font-size: 18px; }
+.bar__actions { display: flex; gap: 8px; }
+.pill {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.stage {
+  flex: 1;
+  display: block;
+  width: 100%;
+  touch-action: manipulation;   /* ダブルタップ拡大を止める */
+  user-select: none;
+  -webkit-user-select: none;
+  overflow-x: hidden;
+}
+.credit { text-align: center; font-size: 12px; color: var(--muted); }
+.credit a { color: inherit; }
+.muted { color: var(--muted); font-size: 12px; }
+
+/* ---- セットアップ・結果 ---- */
+.setup, .result { text-align: center; padding: 24px 8px; }
+.setup__players, .result { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.pill--big { padding: 10px 24px; font-size: 16px; }
+.pill--ghost { background: transparent; }
+.result__list { list-style: none; padding: 0; margin: 12px 0; text-align: left; display: inline-block; }
+.result__list li { padding: 4px 0; }
+
+/* ---- トークン ---- */
+.tok {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  font-size: 11px; font-weight: 700; color: #1c2333;
+  margin: 1px;
+}
+.tok--white { background: #eceef3; }
+.tok--blue { background: #5fb3ff; }
+.tok--green { background: #6fd18b; }
+.tok--red { background: #ff7a6b; }
+.tok--black { background: #6b7280; color: #eceef3; }
+.tok--gold { background: var(--accent); }
+.tok__n { pointer-events: none; }
+.cost-free { font-size: 11px; color: var(--muted); }
+
+/* ---- 貴族 ---- */
+.nobles { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding: 6px 0; }
+.noble {
+  width: 52px; border-radius: 8px; background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12); padding: 4px; text-align: center;
+}
+.noble__pts { font-weight: 700; color: var(--accent); }
+.noble__req { display: flex; flex-wrap: wrap; justify-content: center; }
+
+/* ---- 場のカード ---- */
+.level { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+.level__cards { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.deck {
+  width: 44px; height: 60px; flex-shrink: 0; border-radius: 6px;
+  background: rgba(255,255,255,0.08); border: 1px dashed rgba(255,255,255,0.2);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 10px; text-align: center; color: var(--muted);
+}
+.card {
+  width: 68px; min-height: 60px; border-radius: 6px; padding: 4px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.card--back { background: rgba(255,255,255,0.05); }
+.card--small { width: 28px; height: 40px; min-height: 0; }
+.card--white { border-top: 4px solid #eceef3; }
+.card--blue { border-top: 4px solid #5fb3ff; }
+.card--green { border-top: 4px solid #6fd18b; }
+.card--red { border-top: 4px solid #ff7a6b; }
+.card--black { border-top: 4px solid #9aa0ab; }
+.card__top { display: flex; align-items: center; justify-content: space-between; }
+.card__pts { font-weight: 700; font-size: 13px; }
+.card__cost { display: flex; flex-wrap: wrap; }
+
+/* ---- トークンを取る ---- */
+.tokens { display: flex; justify-content: center; gap: 4px; padding: 8px 0 2px; }
+.tok-btn { border: none; background: none; padding: 4px; border-radius: 8px; }
+.tok-btn--sel { background: rgba(255, 211, 92, 0.3); }
+.tok-btn:disabled { opacity: 0.3; }
+.take-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 10px; }
+
+/* ---- プレイヤー ---- */
+.players { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; }
+.player { border-radius: 8px; padding: 6px 8px; background: rgba(255,255,255,0.04); }
+.player--current { background: rgba(255, 211, 92, 0.12); border: 1px solid rgba(255, 211, 92, 0.4); }
+.player__head { display: flex; justify-content: space-between; }
+.player__pts { color: var(--accent); font-weight: 700; }
+.player__row { display: flex; flex-wrap: wrap; min-height: 24px; align-items: center; }
+.player__reserved { display: flex; gap: 4px; flex-wrap: wrap; }
+.player__reserved--back { min-height: 40px; }
+
+/* ---- モーダル・シート ---- */
+.modal { padding: 24px 12px; text-align: center; }
+.modal__nobles, .modal__tokens { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; padding-top: 10px; }
+.sheet {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: flex-end;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.sheet__inner {
+  background: var(--bg); border-radius: 12px 12px 0 0; padding: 16px;
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.sheet__buttons { display: flex; gap: 8px; }
+
+/* 全画面のオーバーレイは opacity ではなく display: none で隠す */

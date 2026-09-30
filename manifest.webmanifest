@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "gem-trade — 宝石の取引で発展する",
+  "short_name": "gem-trade",
+  "description": "5色のトークンで発展カードを買い、貴族を迎えて点を競うボードゲームの試作。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1c2333",
+  "theme_color": "#1c2333",
+  "lang": "ja",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

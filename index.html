@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1c2333">
+  <meta name="description" content="5色のトークンで発展カードを買い、貴族を迎えて点を競うボードゲームの試作。">
+  <title>gem-trade — 宝石の取引で発展する</title>
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="gem-trade">
+  <meta property="og:title" content="gem-trade — 宝石の取引で発展する">
+  <meta property="og:description" content="5色のトークンで発展カードを買い、貴族を迎えて点を競うボードゲームの試作。">
+  <meta property="og:url" content="https://t-of.github.io/gem-trade/">
+  <meta property="og:image" content="https://t-of.github.io/gem-trade/icons/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- apple-mobile-web-app-status-bar-style は付けない（black-translucent だと iOS 26 で上部が隠れる） -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="gem-trade">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="./webapp-kit/webapp-kit.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="bar">
+      <h1 class="bar__title">gem-trade</h1>
+      <div class="bar__actions">
+        <button class="pill" data-wak="install" hidden>アプリにする</button>
+        <button class="pill" data-wak="share">共有</button>
+      </div>
+    </header>
+
+    <section class="stage" id="stage">
+      <!-- ここにゲーム本体 -->
+    </section>
+
+    <footer class="credit">
+      <a href="/">T.OF...</a> のアプリ ／ <a href="https://t-of.github.io/contact/">問い合わせ</a>
+    </footer>
+  </main>
+
+  <script src="./webapp-kit/webapp-kit.js"></script>
+  <script src="./data.js"></script>
+  <script src="./main.js"></script>
+</body>
+</html>
