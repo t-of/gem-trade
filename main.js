@@ -75,7 +75,7 @@ function newGame(numPlayers) {
     decks,
     board,
     nobles,
-    endAfter: null,     // 誰かが15点に届いたら、その人の番号（そこに戻る手前で終える）
+    endAfter: null,     // 誰かが15点に届いたら 0（最初の人）。その回の最後の人まで回して終える
     winner: null,
     result: null,
     pendingDiscard: null,  // { need: 戻す枚数 }
@@ -160,7 +160,7 @@ function chooseNoble(id) {
 }
 function checkEndCondition() {
   const player = state.players[state.current];
-  if (player.points >= 15 && state.endAfter === null) state.endAfter = state.current;
+  if (player.points >= 15 && state.endAfter === null) state.endAfter = 0;   // 全員の手番の数をそろえる
 }
 function advanceTurn() {
   const next = (state.current + 1) % state.numPlayers;
