@@ -365,8 +365,10 @@ function cardHtml(card, { clickable = true } = {}) {
 }
 function nobleHtml(id) {
   const n = NOBLE_BY_ID[id];
-  const req = Object.entries(n.req).map(([c, v]) => tokenDot(c, v)).join('');
-  return `<div class="noble" data-noble="${id}"><div class="noble__pts">${n.points}</div><div class="noble__req">${req}</div></div>`;
+  // 条件はカードのシルエットに枚数を書いて並べる（貴族は買ったカードのボーナスで来るため）
+  const req = CLR.filter((c) => n.req[c]).map((c) => `<span class="noble__card noble__card--${c}">${n.req[c]}</span>`).join('');
+  const label = `貴族、${n.points}点。条件 ${CLR.filter((c) => n.req[c]).map((c) => COLOR_LABEL[c] + n.req[c] + '枚').join('・')}`;
+  return `<div class="noble" data-noble="${id}" aria-label="${label}"><div class="noble__pts">${n.points}</div><div class="noble__req">${req}</div></div>`;
 }
 
 function render() {
