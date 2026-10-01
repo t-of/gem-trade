@@ -263,14 +263,15 @@ function selectionIsValid() {
 
 // ---------- 画面 ----------
 
+// コイン（宝石トークン）。公式のように、円の中にその宝石を描く。数は右下の小さな丸に出す。
+function coinHtml(color, n) {
+  return `<span class="coin coin--${color}">${gemSvg(color)}<span class="coin__n">${n}</span></span>`;
+}
 function tokenDot(color, n) {
   return `<span class="tok tok--${color}"><span class="tok__n">${n}</span></span>`;
 }
-function cardCostHtml(cost) {
-  return CLR.filter((c) => cost[c] > 0).map((c) => tokenDot(c, cost[c])).join('') || '<span class="cost-free">無料</span>';
-}
 // カードの真ん中の宝石。色ごとに形を変える（白=ブリリアント、青=オーバル、緑=エメラルドカット、
-// 赤=クッション、黒=長方形のステップカット）。色は CSS の .card--<色> の変数（--g1 明るい 〜 --g5 暗い）で塗る。
+// 赤=クッション、黒=長方形のステップカット、金=丸い粒）。色は CSS の .card--<色> の変数（--g1 明るい 〜 --g5 暗い）で塗る。
 // 面の座標は、光を左上に置いて面の向きで明るさを決めて作った。
 const GEM_SHAPES = {
   white: `
@@ -336,7 +337,13 @@ const GEM_SHAPES = {
     <polygon class="g5" points="142,152 58,152 72,136 128,136"></polygon>
     <polygon class="g2" points="58,152 58,28 72,44 72,136"></polygon>
     <polygon class="g3" points="72,44 128,44 128,136 72,136"></polygon>
-    <polygon class="gem__edge" points="44,12 156,12 156,168 44,168"></polygon>`
+    <polygon class="gem__edge" points="44,12 156,12 156,168 44,168"></polygon>`,
+  gold: `
+    <ellipse class="g5" cx="100" cy="92" rx="72" ry="72"></ellipse>
+    <ellipse class="g4" cx="94" cy="86" rx="62" ry="62"></ellipse>
+    <ellipse class="g3" cx="86" cy="76" rx="44" ry="42"></ellipse>
+    <ellipse class="g2" cx="78" cy="66" rx="22" ry="18" opacity="0.7"></ellipse>
+    <ellipse class="gem__edge" cx="100" cy="92" rx="72" ry="72"></ellipse>`
 };
 function gemSvg(color) {
   return `<svg class="gem" viewBox="0 0 200 185" aria-hidden="true">
@@ -413,7 +420,7 @@ function renderDiscard() {
     <div class="modal">
       <h3>${player.name}: トークンを ${state.pendingDiscard.need} 枚戻す</h3>
       <div class="modal__tokens">
-        ${[...CLR, 'gold'].filter((c) => player.tokens[c] > 0).map((c) => `<button class="tok-btn" data-discard="${c}">${tokenDot(c, player.tokens[c])}</button>`).join('')}
+        ${[...CLR, 'gold'].filter((c) => player.tokens[c] > 0).map((c) => `<button class="tok-btn" data-discard="${c}">${coinHtml(c, player.tokens[c])}</button>`).join('')}
       </div>
     </div>`;
   stage.querySelectorAll('[data-discard]').forEach((el) => el.addEventListener('click', () => doDiscard(el.dataset.discard)));
@@ -421,7 +428,7 @@ function renderDiscard() {
 
 function playerSummary(p, idx, { isCurrent }) {
   const bonusHtml = CLR.filter((c) => p.bonuses[c] > 0).map((c) => tokenDot(c, p.bonuses[c])).join('');
-  const tokenHtml = [...CLR, 'gold'].filter((c) => p.tokens[c] > 0).map((c) => tokenDot(c, p.tokens[c])).join('');
+  const tokenHtml = [...CLR, 'gold'].filter((c) => p.tokens[c] > 0).map((c) => coinHtml(c, p.tokens[c])).join('');
   return `
     <div class="player ${isCurrent ? 'player--current' : ''}">
       <div class="player__head"><strong>${p.name}</strong><span class="player__pts">${p.points} 点</span></div>
@@ -452,7 +459,7 @@ function renderBoard() {
       <div class="tokens">
         ${[...CLR, 'gold'].map((c) => `
           <button class="tok-btn ${c === 'gold' ? 'tok-btn--gold' : ''} ${sel.includes(c) ? 'tok-btn--sel' : ''}" data-take="${c}" ${c === 'gold' || state.bank[c] === 0 ? 'disabled' : ''}>
-            ${tokenDot(c, state.bank[c])}
+            ${coinHtml(c, state.bank[c])}
             ${sel.filter((x) => x === c).length === 2 ? '<span class="tok-btn__x2">×2</span>' : ''}
           </button>`).join('')}
       </div>
