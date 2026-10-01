@@ -87,6 +87,9 @@ function newGame(numPlayers) {
 let state = load('state', null);
 
 function persist() { save('state', state); render(); }
+// 'home'（ホーム画面）か 'game'。開いたときはいつもホームから。保存はしない（遊び途中の state は残る）
+let view = 'home';
+document.getElementById('go-home').addEventListener('click', () => { view = 'home'; render(); });
 
 // ---------- ルールの判定 ----------
 
@@ -372,28 +375,35 @@ function nobleHtml(id) {
 }
 
 function render() {
-  if (!state) { renderSetup(); return; }
+  document.getElementById('go-home').hidden = view === 'home';
+  if (view === 'home' || !state) { renderHome(); return; }
   if (state.result) { renderResult(); return; }
   if (state.pendingNoble) { renderNobleChoice(); return; }
   if (state.pendingDiscard) { renderDiscard(); return; }
   renderBoard();
 }
 
-function renderSetup() {
+function renderHome() {
+  const playing = state && !state.result;
   stage.innerHTML = `
-    <div class="setup">
-      <h2>gem-trade</h2>
-      <p class="setup__hint">1 台を回して遊ぶホットシート。人数を選んではじめる。</p>
+    <div class="home">
+      <div class="home__gems">${['white', 'blue', 'green', 'red', 'black'].map((c) => `<span class="card--${c}">${gemSvg(c)}</span>`).join('')}</div>
+      <h2 class="home__title">gem-trade</h2>
+      <p class="home__hint">宝石を集めてカードを買い、先に15点をめざす。1 台を回して遊ぶ。</p>
+      ${playing ? `<button class="pill pill--big" id="resume">つづきから（${state.numPlayers} 人）</button>` : ''}
+      <p class="home__label">${playing ? '新しく始める' : '人数を選んで始める'}</p>
       <div class="setup__players">
         ${[2, 3, 4].map((n) => `<button class="pill pill--big" data-new="${n}">${n} 人</button>`).join('')}
       </div>
     </div>`;
+  if (playing) document.getElementById('resume').addEventListener('click', () => { view = 'game'; render(); });
   stage.querySelectorAll('[data-new]').forEach((b) => b.addEventListener('click', () => {
+    if (playing && !confirm('遊んでいる途中のゲームは消えます。新しく始めますか？')) return;
     state = newGame(Number(b.dataset.new));
+    view = 'game';
     persist();
   }));
 }
-
 function renderResult() {
   const names = state.result.map((i) => state.players[i]);
   stage.innerHTML = `
@@ -404,7 +414,7 @@ function renderResult() {
       </ol>
       <button class="pill pill--big" id="again">もう一度遊ぶ</button>
     </div>`;
-  document.getElementById('again').addEventListener('click', () => { state = null; persist(); });
+  document.getElementById('again').addEventListener('click', () => { state = null; view = 'home'; persist(); });
 }
 
 function renderNobleChoice() {

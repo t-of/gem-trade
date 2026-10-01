@@ -56,6 +56,14 @@ button { font: inherit; color: inherit; }
 
 /* ---- セットアップ・結果 ---- */
 .setup, .result { text-align: center; padding: 24px 8px; }
+/* ---- ホーム ---- */
+.home { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 32px 8px; text-align: center; }
+.home__gems { display: flex; gap: 6px; }
+.home__gems .gem { width: 48px; height: 46px; padding: 0; }
+.home__title { margin: 4px 0 0; font-family: Georgia, 'Times New Roman', serif; font-size: 36px; letter-spacing: 0.04em; }
+.home__hint { margin: 0; color: var(--muted); font-size: 13px; }
+.home__label { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+.home .setup__players { flex-direction: row; justify-content: center; }
 .setup__players, .result { display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .pill--big { padding: 10px 24px; font-size: 16px; }
 .pill--ghost { background: transparent; }
