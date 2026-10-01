@@ -269,15 +269,32 @@ function tokenDot(color, n) {
 function cardCostHtml(cost) {
   return CLR.filter((c) => cost[c] > 0).map((c) => tokenDot(c, cost[c])).join('') || '<span class="cost-free">無料</span>';
 }
+// カードの真ん中の宝石。色は CSS の .card--<色> の変数（--g1 明るい 〜 --g5 縁）で塗る。
+const GEM_SVG = `<svg class="gem" viewBox="0 0 200 185" aria-hidden="true">
+  <ellipse class="gem__shadow" cx="100" cy="180" rx="62" ry="5"></ellipse>
+  <polygon class="g1" points="60,30 20,75 70,75"></polygon>
+  <polygon class="g3" points="60,30 70,75 100,30"></polygon>
+  <polygon class="g2" points="100,30 70,75 130,75"></polygon>
+  <polygon class="g3" points="100,30 130,75 140,30"></polygon>
+  <polygon class="g4" points="140,30 130,75 180,75"></polygon>
+  <polygon class="g4" points="20,75 70,75 100,175"></polygon>
+  <polygon class="g3" points="70,75 130,75 100,175"></polygon>
+  <polygon class="g5" points="130,75 180,75 100,175"></polygon>
+  <polyline class="gem__edge" points="60,30 140,30 180,75 100,175 20,75 60,30"></polyline>
+  <line class="gem__edge" x1="20" y1="75" x2="180" y2="75"></line>
+  <path class="gem__shine" d="M150 18 l3 9 l9 3 l-9 3 l-3 9 l-3 -9 l-9 -3 l9 -3 z"></path>
+  <polygon class="gem__shine gem__shine--soft" points="66,36 52,58 64,58"></polygon>
+</svg>`;
 function cardHtml(card, { clickable = true } = {}) {
   if (!card) return '<div class="card card--back"></div>';
+  const cost = CLR.filter((c) => card.cost[c] > 0)
+    .map((c) => `<span class="chip chip--${c}">${card.cost[c]}</span>`).join('');
+  const label = `${COLOR_LABEL[card.bonus]}の宝石、${card.points}点。値段 ${CLR.filter((c) => card.cost[c] > 0).map((c) => COLOR_LABEL[c] + card.cost[c]).join('・')}`;
   return `
-    <div class="card card--${card.bonus}" data-card="${card.id}" ${clickable ? '' : 'data-noclick'}>
-      <div class="card__top">
-        <span class="card__pts">${card.points || ''}</span>
-        <span class="tok tok--${card.bonus} card__bonus"></span>
-      </div>
-      <div class="card__cost">${cardCostHtml(card.cost)}</div>
+    <div class="card card--${card.bonus}" data-card="${card.id}" ${clickable ? '' : 'data-noclick'} aria-label="${label}">
+      <span class="card__pts">${card.points || ''}</span>
+      ${GEM_SVG}
+      <div class="card__cost">${cost}</div>
     </div>`;
 }
 function nobleHtml(id) {

@@ -96,21 +96,50 @@ button { font: inherit; color: inherit; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   font-size: 10px; text-align: center; color: var(--muted);
 }
+/* カードは em で組む。.card の font-size を変えると全体が拡大縮小する（シートでは大きく出す） */
 .card {
-  width: 68px; min-height: 60px; border-radius: 6px; padding: 4px;
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
-  display: flex; flex-direction: column; gap: 4px;
+  position: relative; box-sizing: border-box;
+  font-size: 10px; width: 6.8em; height: 9.5em; border-radius: 0.7em; overflow: hidden;
+  background: linear-gradient(180deg, var(--c-top) 0%, var(--c-bot) 100%);
+  border: 1px solid var(--c-rim);
+  box-shadow: 0 0.3em 0.8em rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12);
+  display: flex; flex-direction: column; align-items: center;
 }
-.card--back { background: rgba(255,255,255,0.05); }
-.card--small { width: 28px; height: 40px; min-height: 0; }
-.card--white { border-top: 4px solid #eceef3; }
-.card--blue { border-top: 4px solid #5fb3ff; }
-.card--green { border-top: 4px solid #6fd18b; }
-.card--red { border-top: 4px solid #ff7a6b; }
-.card--black { border-top: 4px solid #9aa0ab; }
-.card__top { display: flex; align-items: center; justify-content: space-between; }
-.card__pts { font-weight: 700; font-size: 13px; }
-.card__cost { display: flex; flex-wrap: wrap; }
+.card--back { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); box-shadow: none; }
+.card--small { width: 28px; height: 40px; }
+.card__pts {
+  position: absolute; left: 0.45em; top: 0.15em;
+  font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 2.2em; line-height: 1;
+  color: #f6efe0; text-shadow: 0 0.06em 0.2em rgba(0,0,0,0.6);
+}
+.gem { flex: 1; width: 4.6em; min-height: 0; padding-top: 1.2em; }
+.gem .g1 { fill: var(--g1); } .gem .g2 { fill: var(--g2); } .gem .g3 { fill: var(--g3); }
+.gem .g4 { fill: var(--g4); } .gem .g5 { fill: var(--g5); }
+.gem__edge { fill: none; stroke: var(--g-edge); stroke-width: 2; stroke-linejoin: round; }
+.gem__shadow { fill: rgba(0,0,0,0.45); }
+.gem__shine { fill: #fff; opacity: 0.9; }
+.gem__shine--soft { opacity: 0.55; }
+.card__cost {
+  align-self: stretch; display: flex; justify-content: center; gap: 0.15em;
+  padding: 0.35em 0.2em 0.45em; background: rgba(0,0,0,0.32); border-top: 1px solid rgba(255,255,255,0.08);
+}
+.chip {
+  width: 1.45em; height: 1.45em; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1em; font-weight: 800; color: #fff;
+  box-shadow: inset 0 -0.12em 0 rgba(0,0,0,0.25), inset 0 0.08em 0 rgba(255,255,255,0.35), 0 0.08em 0.15em rgba(0,0,0,0.4);
+}
+.chip--white { background: #eef1f5; color: #1d2430; }
+.chip--blue { background: #2a62d2; }
+.chip--green { background: #1c8a4a; }
+.chip--red { background: #c8283a; }
+.chip--black { background: #2a2a32; }
+.card--red   { --c-top: #5a1820; --c-bot: #2a0d12; --c-rim: #8a3a42; --g1: #ff8a8a; --g2: #f0525a; --g3: #d22a3a; --g4: #a5162a; --g5: #6e0b1a; --g-edge: #3f0610; }
+.card--blue  { --c-top: #182e5a; --c-bot: #0d152a; --c-rim: #3a568a; --g1: #9cc8ff; --g2: #4f90f0; --g3: #2a62d2; --g4: #1a43a5; --g5: #0d276e; --g-edge: #06153f; }
+.card--green { --c-top: #17452c; --c-bot: #0b2216; --c-rim: #3a7a52; --g1: #9ef0b8; --g2: #46d27a; --g3: #1fa857; --g4: #127a3e; --g5: #0a4d27; --g-edge: #052b15; }
+.card--white { --c-top: #4a5566; --c-bot: #232a35; --c-rim: #7d8899; --g1: #ffffff; --g2: #eef4fb; --g3: #cfdbe8; --g4: #a9b9cc; --g5: #7f92a8; --g-edge: #4f6075; }
+.card--black { --c-top: #3a3a40; --c-bot: #18181c; --c-rim: #5d5d66; --g1: #8a8a96; --g2: #5a5a66; --g3: #3a3a44; --g4: #26262e; --g5: #15151a; --g-edge: #000; }
+.sheet .card { font-size: 22px; }
 
 /* ---- トークンを取る ---- */
 .tokens { display: flex; justify-content: center; gap: 4px; padding: 8px 0 2px; }
