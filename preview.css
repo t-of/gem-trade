@@ -1,0 +1,238 @@
+/* gem-trade 見た目刷新 第1段階の見本ページ。
+   ここで決めた形（<symbol> + CSS 変数）を、OK が出たら style.css / main.js へ展開する。
+   色は var(--gem-xxx-1..3) にまとめてあるので、配色だけ変えるならここを直せばよい。 */
+
+:root {
+  /* 卓上（ベルベット）。第2段階で作り込む前提の簡易版 */
+  --velvet-1: #141c33;
+  --velvet-2: #05060b;
+  --gold-rim-1: #f6dfa0;
+  --gold-rim-2: #b98a2e;
+  --gold-rim-3: #5b3c10;
+
+  /* 宝石の色。切子の明暗はここから自動で付く */
+  --gem-white-1: #ffffff; --gem-white-2: #dde6f2; --gem-white-3: #aab8cc; --gem-white-e: #5f6d85;
+  --gem-blue-1: #6fa0ff;  --gem-blue-2: #1d3f9e;  --gem-blue-3: #0a1f5c;  --gem-blue-e: #040f30;
+  --gem-green-1: #57d98f; --gem-green-2: #0e8a4c; --gem-green-3: #063d23; --gem-green-e: #021a0f;
+  --gem-red-1: #ff6b76;   --gem-red-2: #b00e22;   --gem-red-3: #570611;  --gem-red-e: #2b0308;
+  --gem-black-1: #5a5a64; --gem-black-2: #1c1c20; --gem-black-3: #000000; --gem-black-e: #000000;
+  --gem-gold-1: #fff3c2;  --gem-gold-2: #e8b23a;  --gem-gold-3: #8a5f10; --gem-gold-e: #4a3105;
+
+  --card-lv1-bg: #152018;
+  --card-lv2-bg: #3a1420;
+  --card-lv3-bg: #121b38;
+
+  --font-display: 'Cinzel', serif;
+  --font-number: 'Cormorant Garamond', serif;
+  --font-jp: 'Shippori Mincho', serif;
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  background: var(--velvet-2);
+  margin: 0;
+}
+body {
+  min-height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  color: #f1e6c8;
+  font-family: var(--font-jp);
+  position: relative;
+  background: radial-gradient(ellipse at 50% -10%, var(--velvet-1) 0%, var(--velvet-2) 60%);
+}
+/* ベルベットの薄いノイズ。作り込みは第2段階 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: repeating-conic-gradient(rgba(255,255,255,.02) 0% 25%, transparent 0% 50%);
+  background-size: 3px 3px;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+h1, h2 { font-family: var(--font-display); font-weight: 700; letter-spacing: .04em; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+h2 { font-size: 14px; margin: 28px 0 10px; color: #cdb87a; text-transform: uppercase; letter-spacing: .12em; }
+p.lead { margin: 0 0 20px; color: #b9b2a0; font-size: 13px; }
+
+main { max-width: 760px; margin: 0 auto; position: relative; }
+
+/* ---------- 宝石 ---------- */
+
+.gem-row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
+.gem-row--small { gap: 14px; align-items: center; }
+
+.gem-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.gem-item__label { font-family: var(--font-jp); font-size: 12px; color: #cdb87a; }
+
+/* <use> を包む箱。ホバーのきらめきと影はここに付ける（SVG の中身は共通化して軽くする） */
+.gem-box {
+  position: relative;
+  display: inline-block;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.gem-box::after {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.35) 50%, transparent 65%);
+  background-size: 220% 220%;
+  background-position: -120% -120%;
+  transition: background-position .6s ease;
+  pointer-events: none;
+}
+.gem-box:hover::after, .gem-box:focus-visible::after { background-position: 120% 120%; }
+@media (prefers-reduced-motion: reduce) { .gem-box::after { transition: none; } }
+
+.gem-box--lg { width: 96px; height: 96px; }
+.gem-box--sm { width: 24px; height: 24px; border-radius: 6px; }
+.gem { display: block; width: 100%; height: 100%; transform-box: fill-box; }
+
+/* 切子の明暗。色そのものは base のグラデーション（CSS 変数）に乗せ、ここは共通の重ね塗り */
+.gem__facet--lt { fill: #fff; opacity: .16; }
+.gem__facet--dk { fill: #000; opacity: .18; }
+.gem__table { fill: #fff; opacity: .24; }
+.gem__girdle { fill: none; stroke: rgba(0,0,0,.5); stroke-width: 1.5; stroke-linejoin: round; }
+.gem__ring { fill: none; stroke: rgba(0,0,0,.35); stroke-width: 1; }
+.gem__ring--1 { fill: rgba(255,255,255,.08); }
+.gem__ring--2 { fill: rgba(0,0,0,.1); }
+.gem__ring--3 { fill: rgba(0,0,0,.26); }
+.gem__cloud { stroke: rgba(255,255,255,.15); stroke-width: 1.4; fill: none; stroke-linecap: round; }
+.gem__facet--metal { fill: none; stroke-linecap: round; stroke-width: 4; }
+.gem__facet--lt-line { stroke: rgba(255,255,255,.55); }
+.gem__facet--dk-line { stroke: rgba(0,0,0,.35); }
+.gem__fire ellipse { mix-blend-mode: screen; }
+.gem__shadow { fill: rgba(0,0,0,.4); }
+.gem__spark { fill: #fff; opacity: .85; transform-origin: center; }
+.gem__spark--sharp { opacity: .95; }
+
+/* ホバーできらめきが走る（反射が強い宝石ほどよく動く） */
+.gem-box:hover .gem__spark, .gem-box:focus-visible .gem__spark {
+  animation: gem-twinkle 900ms ease-in-out;
+}
+@keyframes gem-twinkle {
+  0%, 100% { opacity: .85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gem-box:hover .gem__spark, .gem-box:focus-visible .gem__spark { animation: none; }
+}
+
+/* 色ごとの落ち影に、宝石の色をわずかに混ぜる */
+.gem-box--white .gem__shadow { fill: rgba(140,160,190,.35); }
+.gem-box--blue .gem__shadow { fill: rgba(30,60,160,.45); }
+.gem-box--green .gem__shadow { fill: rgba(15,110,70,.45); }
+.gem-box--red .gem__shadow { fill: rgba(140,15,30,.45); }
+.gem-box--black .gem__shadow { fill: rgba(0,0,0,.55); }
+.gem-box--gold .gem__shadow { fill: rgba(120,80,15,.45); }
+
+/* グラデーションの色栓。gradient の <stop> に付けたクラス */
+.stop-white-1 { stop-color: var(--gem-white-1); }
+.stop-white-2 { stop-color: var(--gem-white-2); }
+.stop-white-3 { stop-color: var(--gem-white-3); }
+.stop-white-e { stop-color: var(--gem-white-e); }
+.stop-blue-1 { stop-color: var(--gem-blue-1); }
+.stop-blue-2 { stop-color: var(--gem-blue-2); }
+.stop-blue-3 { stop-color: var(--gem-blue-3); }
+.stop-blue-e { stop-color: var(--gem-blue-e); }
+.stop-green-1 { stop-color: var(--gem-green-1); }
+.stop-green-2 { stop-color: var(--gem-green-2); }
+.stop-green-3 { stop-color: var(--gem-green-3); }
+.stop-green-e { stop-color: var(--gem-green-e); }
+.stop-red-1 { stop-color: var(--gem-red-1); }
+.stop-red-2 { stop-color: var(--gem-red-2); }
+.stop-red-3 { stop-color: var(--gem-red-3); }
+.stop-red-e { stop-color: var(--gem-red-e); }
+.stop-black-1 { stop-color: var(--gem-black-1); }
+.stop-black-2 { stop-color: var(--gem-black-2); }
+.stop-black-3 { stop-color: var(--gem-black-3); }
+.stop-black-e { stop-color: var(--gem-black-e); }
+.stop-gold-1 { stop-color: var(--gem-gold-1); }
+.stop-gold-2 { stop-color: var(--gem-gold-2); }
+.stop-gold-3 { stop-color: var(--gem-gold-3); }
+.stop-gold-e { stop-color: var(--gem-gold-e); }
+
+/* ---------- カード ---------- */
+
+.card-row { display: flex; gap: 24px; flex-wrap: wrap; }
+
+.card {
+  position: relative;
+  width: 208px;
+  aspect-ratio: 3 / 4;
+  border-radius: 14px;
+  background:
+    radial-gradient(130px 130px at 86% 8%, var(--bonus-glow, rgba(255,255,255,.2)), transparent 70%),
+    linear-gradient(160deg, var(--lv-bg, var(--card-lv2-bg)) 0%, #050506 150%);
+  box-shadow:
+    inset 0 0 0 3px rgba(0,0,0,.4),
+    inset 0 0 0 4px var(--gold-rim-1),
+    inset 0 0 0 6px rgba(0,0,0,.4),
+    0 14px 28px rgba(0,0,0,.55);
+  overflow: hidden;
+  outline: none;
+}
+.card::after {
+  content: '';
+  position: absolute;
+  inset: -60%;
+  background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.18) 50%, transparent 60%);
+  background-size: 220% 220%;
+  background-position: -120% -120%;
+  transition: background-position .7s ease;
+  pointer-events: none;
+}
+.card:hover::after, .card:focus-visible::after { background-position: 120% 120%; }
+@media (prefers-reduced-motion: reduce) { .card::after { transition: none; } }
+
+.card--lv1 { --lv-bg: var(--card-lv1-bg); }
+.card--lv2 { --lv-bg: var(--card-lv2-bg); }
+.card--lv3 { --lv-bg: var(--card-lv3-bg); }
+.card--bonus-white { --bonus-glow: rgba(220,230,245,.35); }
+.card--bonus-blue { --bonus-glow: rgba(70,110,230,.4); }
+.card--bonus-green { --bonus-glow: rgba(60,200,120,.4); }
+.card--bonus-red { --bonus-glow: rgba(230,50,60,.4); }
+.card--bonus-black { --bonus-glow: rgba(120,120,130,.3); }
+.card--bonus-gold { --bonus-glow: rgba(230,180,60,.4); }
+
+.card__corner { position: absolute; width: 10px; height: 10px; background: linear-gradient(135deg, var(--gold-rim-1), var(--gold-rim-3)); transform: rotate(45deg); }
+.card__corner--tl { top: 10px; left: 10px; }
+.card__corner--tr { top: 10px; right: 10px; }
+.card__corner--bl { bottom: 42px; left: 10px; }
+.card__corner--br { bottom: 42px; right: 10px; }
+
+.card__pts {
+  position: absolute; top: 8px; left: 14px;
+  font-family: var(--font-number);
+  font-weight: 700;
+  font-variant-numeric: lining-nums;
+  font-size: 32px;
+  line-height: 1;
+  color: #fff6d8;
+  text-shadow: 0 2px 3px rgba(0,0,0,.85), 0 0 10px rgba(0,0,0,.6);
+}
+
+.card__bonus { position: absolute; top: 10px; right: 10px; width: 64px; height: 64px; }
+
+.card__cost {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; gap: 10px; align-items: center;
+  padding: 8px 12px;
+  background: linear-gradient(0deg, rgba(0,0,0,.72), rgba(0,0,0,.2));
+}
+.card__cost-item {
+  display: flex; align-items: center; gap: 4px;
+  font-family: var(--font-number);
+  font-weight: 700;
+  font-variant-numeric: lining-nums;
+  font-size: 19px;
+  color: #f5ead0;
+  text-shadow: 0 1px 2px rgba(0,0,0,.8);
+}
+.card__cost-item .gem-box--sm { width: 22px; height: 22px; }
+
+footer.note { margin-top: 32px; font-size: 12px; color: #8b8370; }
