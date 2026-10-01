@@ -313,17 +313,23 @@ h2, h3 { font-family: var(--font-jp); font-weight: 700; margin: 0 0 8px; }
 }
 .card__cost {
   position: absolute; left: 0; right: 0; bottom: 0;
-  display: flex; justify-content: center; flex-wrap: wrap; gap: 0.4em;
-  padding: 0.35em 0.2em 0.45em;
+  display: flex; justify-content: center; gap: 0.1em;
+  padding: 0.3em 0.2em 0.4em;
   background: linear-gradient(0deg, rgba(0, 0, 0, .72), rgba(0, 0, 0, .15));
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 .card__cost-item {
-  display: flex; align-items: center; gap: 0.15em;
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 1.45em; height: 1.45em;
   font-family: var(--font-number); font-weight: 700; font-variant-numeric: lining-nums;
-  font-size: 1.27em; color: #f5ead0; text-shadow: 0 0.05em 0.1em rgba(0, 0, 0, .8);
+  font-size: 1.27em; color: #fff;
 }
-.card__cost-item .gem-box { width: 1.3em; height: 1.3em; border-radius: 0.3em; }
+/* 4 色でも 1 行に収まるよう、数は宝石の上に重ねる */
+.card__cost-item .gem-box { position: absolute; inset: 0; width: 100%; height: 100%; }
+.card__cost-n {
+  position: relative; line-height: 1;
+  text-shadow: 0 0 0.12em #000, 0 0 0.12em #000, 0 0 0.25em #000;
+}
 .sheet .card { font-size: 22px; }
 
 /* 色ごとの落ち影に、宝石の色をわずかに混ぜる（コイン・カード共通） */
@@ -362,6 +368,7 @@ h2, h3 { font-family: var(--font-jp); font-weight: 700; margin: 0 0 8px; }
 .tok-btn__x2 { position: absolute; top: -6px; right: -6px; padding: 1px 5px; border-radius: 999px; background: #ffd35c; color: #222; font-size: 12px; font-weight: 700; }
 .tok-btn--sel { background: rgba(255, 211, 92, 0.3); }
 .tok-btn:disabled { opacity: 0.3; }
+.take-bar .muted { flex: 1; contain: inline-size; }  /* 長い説明で盤面の幅を広げない */
 .take-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 10px; }
 
 /* ---- プレイヤー ---- */
@@ -391,6 +398,7 @@ h2, h3 { font-family: var(--font-jp); font-weight: 700; margin: 0 0 8px; }
 
 /* 全画面のオーバーレイは opacity ではなく display: none で隠す */
 
+.board { width: max-content; margin: 0 auto; }  /* 中身の大きさにして、fitBoard で画面いっぱいまで拡大する */
 /* 広い画面: 左に場（貴族・カード・トークン）、右にプレイヤー。スマホ幅は縦に積む */
 @media (min-width: 640px) {
   .board { display: grid; grid-template-columns: minmax(0, auto) minmax(220px, 320px); gap: 16px; align-items: start; justify-content: center; }

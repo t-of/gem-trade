@@ -282,7 +282,7 @@ const ROMAN_BY_LEVEL = { 1: 'I', 2: 'II', 3: 'III' };
 function cardHtml(card, { clickable = true } = {}) {
   if (!card) return '<div class="card card--back"></div>';
   const cost = CLR.filter((c) => card.cost[c] > 0).map((c) => `
-    <span class="card__cost-item"><span class="gem-box gem-box--${c}">${gemSvg(c)}</span>${card.cost[c]}</span>`).join('');
+    <span class="card__cost-item"><span class="gem-box gem-box--${c}">${gemSvg(c)}</span><span class="card__cost-n">${card.cost[c]}</span></span>`).join('');
   const label = `${COLOR_LABEL[card.bonus]}の宝石、${card.points}点。値段 ${CLR.filter((c) => card.cost[c] > 0).map((c) => COLOR_LABEL[c] + card.cost[c]).join('・')}`;
   return `
     <div class="card card--lv${card.level} card--bonus-${card.bonus}" data-card="${card.id}" ${clickable ? '' : 'data-noclick'} aria-label="${label}">
@@ -320,7 +320,22 @@ function render() {
   if (state.pendingNoble) { renderNobleChoice(); return; }
   if (state.pendingDiscard) { renderDiscard(); return; }
   renderBoard();
+  fitBoard();
 }
+
+// 盤面を画面いっぱいまで拡大する。横は幅に、縦は画面に収まるところまで（スマホ幅は下に積むプレイヤーを除く）
+function fitBoard() {
+  const board = stage.querySelector('.board');
+  if (!board) return;
+  board.style.zoom = 1;
+  const b = board.getBoundingClientRect();
+  const m = board.querySelector('.board__main').getBoundingClientRect();
+  const below = document.querySelector('.credit').offsetHeight + 16;
+  const h = matchMedia('(min-width: 640px)').matches ? b.height : m.height;  // 広い画面はプレイヤーも横に並ぶ
+  const k = Math.min(stage.clientWidth / b.width, (innerHeight - m.top - below) / h);
+  board.style.zoom = Math.max(1, k);
+}
+addEventListener('resize', fitBoard);
 
 function renderHome() {
   const playing = state && !state.result;
