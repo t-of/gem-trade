@@ -270,7 +270,7 @@ function cardCostHtml(cost) {
   return CLR.filter((c) => cost[c] > 0).map((c) => tokenDot(c, cost[c])).join('') || '<span class="cost-free">無料</span>';
 }
 // カードの真ん中の宝石。色ごとに形を変える（白=ブリリアント、青=オーバル、緑=エメラルドカット、
-// 赤=クッション、黒=カボション）。色は CSS の .card--<色> の変数（--g1 明るい 〜 --g5 暗い）で塗る。
+// 赤=クッション、黒=長方形のステップカット）。色は CSS の .card--<色> の変数（--g1 明るい 〜 --g5 暗い）で塗る。
 // 面の座標は、光を左上に置いて面の向きで明るさを決めて作った。
 const GEM_SHAPES = {
   white: `
@@ -327,11 +327,16 @@ const GEM_SHAPES = {
     <polygon class="g2" points="100,56 127,63 134,90 127,117 100,124 73,117 66,90 73,63"></polygon>
     <polygon class="gem__edge" points="100,18 145,21 161,29 169,45 172,90 169,135 161,151 145,159 100,162 55,159 39,151 31,135 28,90 31,45 39,29 55,21"></polygon>`,
   black: `
-    <ellipse class="g5" cx="100" cy="92" rx="72" ry="72"></ellipse>
-    <ellipse class="g4" cx="94" cy="86" rx="62" ry="62"></ellipse>
-    <ellipse class="g3" cx="86" cy="76" rx="44" ry="42"></ellipse>
-    <ellipse class="g2" cx="78" cy="66" rx="22" ry="18" opacity="0.7"></ellipse>
-    <ellipse class="gem__edge" cx="100" cy="92" rx="72" ry="72"></ellipse>`
+    <polygon class="g1" points="44,12 156,12 142,28 58,28"></polygon>
+    <polygon class="g4" points="156,12 156,168 142,152 142,28"></polygon>
+    <polygon class="g5" points="156,168 44,168 58,152 142,152"></polygon>
+    <polygon class="g2" points="44,168 44,12 58,28 58,152"></polygon>
+    <polygon class="g1" points="58,28 142,28 128,44 72,44"></polygon>
+    <polygon class="g4" points="142,28 142,152 128,136 128,44"></polygon>
+    <polygon class="g5" points="142,152 58,152 72,136 128,136"></polygon>
+    <polygon class="g2" points="58,152 58,28 72,44 72,136"></polygon>
+    <polygon class="g3" points="72,44 128,44 128,136 72,136"></polygon>
+    <polygon class="gem__edge" points="44,12 156,12 156,168 44,168"></polygon>`
 };
 function gemSvg(color) {
   return `<svg class="gem" viewBox="0 0 200 185" aria-hidden="true">
