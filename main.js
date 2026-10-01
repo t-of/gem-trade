@@ -267,112 +267,47 @@ function selectionIsValid() {
 
 // ---------- 画面 ----------
 
-// コイン（宝石トークン）。公式のように、円の中にその宝石を描く。数は右下の小さな丸に出す。
+// コイン（宝石トークン）。金縁の丸いトークンの中にその宝石を描く。数は右下の小さな丸に出す。
 function coinHtml(color, n) {
   return `<span class="coin coin--${color}">${gemSvg(color)}<span class="coin__n">${n}</span></span>`;
 }
 function tokenDot(color, n) {
   return `<span class="tok tok--${color}"><span class="tok__n">${n}</span></span>`;
 }
-// カードの真ん中の宝石。色ごとに形を変える（白=ブリリアント、青=オーバル、緑=エメラルドカット、
-// 赤=クッション、黒=長方形のステップカット、金=丸い粒）。色は CSS の .card--<色> の変数（--g1 明るい 〜 --g5 暗い）で塗る。
-// 面の座標は、光を左上に置いて面の向きで明るさを決めて作った。
-const GEM_SHAPES = {
-  white: `
-    <polygon class="g1" points="60,30 20,75 70,75"></polygon>
-    <polygon class="g3" points="60,30 70,75 100,30"></polygon>
-    <polygon class="g2" points="100,30 70,75 130,75"></polygon>
-    <polygon class="g3" points="100,30 130,75 140,30"></polygon>
-    <polygon class="g4" points="140,30 130,75 180,75"></polygon>
-    <polygon class="g4" points="20,75 70,75 100,175"></polygon>
-    <polygon class="g3" points="70,75 130,75 100,175"></polygon>
-    <polygon class="g5" points="130,75 180,75 100,175"></polygon>
-    <polyline class="gem__edge" points="60,30 140,30 180,75 100,175 20,75 60,30"></polyline>
-    <line class="gem__edge" x1="20" y1="75" x2="180" y2="75"></line>
-    <polygon class="gem__shine gem__shine--soft" points="66,36 52,58 64,58"></polygon>`,
-  blue: `
-    <polygon class="g2" points="100,10 124,16 145,33 123,62 100,50"></polygon>
-    <polygon class="g3" points="145,33 159,59 164,90 132,90 123,62"></polygon>
-    <polygon class="g5" points="164,90 159,121 145,147 123,118 132,90"></polygon>
-    <polygon class="g5" points="145,147 124,164 100,170 100,130 123,118"></polygon>
-    <polygon class="g4" points="100,170 76,164 55,147 77,118 100,130"></polygon>
-    <polygon class="g3" points="55,147 41,121 36,90 68,90 77,118"></polygon>
-    <polygon class="g1" points="36,90 41,59 55,33 77,62 68,90"></polygon>
-    <polygon class="g1" points="55,33 76,16 100,10 100,50 77,62"></polygon>
-    <polygon class="g2" points="100,50 123,62 132,90 123,118 100,130 77,118 68,90 77,62"></polygon>
-    <polygon class="gem__edge" points="100,10 124,16 145,33 159,59 164,90 159,121 145,147 124,164 100,170 76,164 55,147 41,121 36,90 41,59 55,33 76,16"></polygon>`,
-  green: `
-    <polygon class="g1" points="62,10 138,10 128,28 72,28"></polygon>
-    <polygon class="g2" points="138,10 160,32 144,44 128,28"></polygon>
-    <polygon class="g5" points="160,32 160,148 144,136 144,44"></polygon>
-    <polygon class="g5" points="160,148 138,170 128,152 144,136"></polygon>
-    <polygon class="g5" points="138,170 62,170 72,152 128,152"></polygon>
-    <polygon class="g4" points="62,170 40,148 56,136 72,152"></polygon>
-    <polygon class="g2" points="40,148 40,32 56,44 56,136"></polygon>
-    <polygon class="g1" points="40,32 62,10 72,28 56,44"></polygon>
-    <polygon class="g1" points="72,28 128,28 118,46 82,46"></polygon>
-    <polygon class="g2" points="128,28 144,44 128,56 118,46"></polygon>
-    <polygon class="g4" points="144,44 144,136 128,124 128,56"></polygon>
-    <polygon class="g4" points="144,136 128,152 118,134 128,124"></polygon>
-    <polygon class="g4" points="128,152 72,152 82,134 118,134"></polygon>
-    <polygon class="g3" points="72,152 56,136 72,124 82,134"></polygon>
-    <polygon class="g2" points="56,136 56,44 72,56 72,124"></polygon>
-    <polygon class="g1" points="56,44 72,28 82,46 72,56"></polygon>
-    <polygon class="g2" points="82,46 118,46 128,56 128,124 118,134 82,134 72,124 72,56"></polygon>
-    <polygon class="gem__edge" points="62,10 138,10 160,32 160,148 138,170 62,170 40,148 40,32"></polygon>`,
-  red: `
-    <polygon class="g2" points="100,18 145,21 161,29 127,63 100,56"></polygon>
-    <polygon class="g3" points="161,29 169,45 172,90 134,90 127,63"></polygon>
-    <polygon class="g5" points="172,90 169,135 161,151 127,117 134,90"></polygon>
-    <polygon class="g5" points="161,151 145,159 100,162 100,124 127,117"></polygon>
-    <polygon class="g4" points="100,162 55,159 39,151 73,117 100,124"></polygon>
-    <polygon class="g3" points="39,151 31,135 28,90 66,90 73,117"></polygon>
-    <polygon class="g1" points="28,90 31,45 39,29 73,63 66,90"></polygon>
-    <polygon class="g1" points="39,29 55,21 100,18 100,56 73,63"></polygon>
-    <polygon class="g2" points="100,56 127,63 134,90 127,117 100,124 73,117 66,90 73,63"></polygon>
-    <polygon class="gem__edge" points="100,18 145,21 161,29 169,45 172,90 169,135 161,151 145,159 100,162 55,159 39,151 31,135 28,90 31,45 39,29 55,21"></polygon>`,
-  black: `
-    <polygon class="g1" points="44,12 156,12 142,28 58,28"></polygon>
-    <polygon class="g4" points="156,12 156,168 142,152 142,28"></polygon>
-    <polygon class="g5" points="156,168 44,168 58,152 142,152"></polygon>
-    <polygon class="g2" points="44,168 44,12 58,28 58,152"></polygon>
-    <polygon class="g1" points="58,28 142,28 128,44 72,44"></polygon>
-    <polygon class="g4" points="142,28 142,152 128,136 128,44"></polygon>
-    <polygon class="g5" points="142,152 58,152 72,136 128,136"></polygon>
-    <polygon class="g2" points="58,152 58,28 72,44 72,136"></polygon>
-    <polygon class="g3" points="72,44 128,44 128,136 72,136"></polygon>
-    <polygon class="gem__edge" points="44,12 156,12 156,168 44,168"></polygon>`,
-  gold: `
-    <ellipse class="g5" cx="100" cy="92" rx="72" ry="72"></ellipse>
-    <ellipse class="g4" cx="94" cy="86" rx="62" ry="62"></ellipse>
-    <ellipse class="g3" cx="86" cy="76" rx="44" ry="42"></ellipse>
-    <ellipse class="g2" cx="78" cy="66" rx="22" ry="18" opacity="0.7"></ellipse>
-    <ellipse class="gem__edge" cx="100" cy="92" rx="72" ry="72"></ellipse>`
-};
+// 宝石の絵。index.html の <symbol id="gem-xxx"> を <use> で呼ぶだけ（中身は共通化して軽くする）。
 function gemSvg(color) {
-  return `<svg class="gem" viewBox="0 0 200 185" aria-hidden="true">
-    <ellipse class="gem__shadow" cx="100" cy="180" rx="62" ry="5"></ellipse>${GEM_SHAPES[color]}
-    <path class="gem__shine" d="M150 18 l3 9 l9 3 l-9 3 l-3 9 l-3 -9 l-9 -3 l9 -3 z"></path>
-  </svg>`;
+  return `<svg class="gem" viewBox="0 0 100 100" aria-hidden="true"><use href="#gem-${color}"></use></svg>`;
 }
+const ROMAN_BY_LEVEL = { 1: 'I', 2: 'II', 3: 'III' };
 function cardHtml(card, { clickable = true } = {}) {
   if (!card) return '<div class="card card--back"></div>';
-  const cost = CLR.filter((c) => card.cost[c] > 0)
-    .map((c) => `<span class="chip chip--${c}">${card.cost[c]}</span>`).join('');
+  const cost = CLR.filter((c) => card.cost[c] > 0).map((c) => `
+    <span class="card__cost-item"><span class="gem-box gem-box--${c}">${gemSvg(c)}</span>${card.cost[c]}</span>`).join('');
   const label = `${COLOR_LABEL[card.bonus]}の宝石、${card.points}点。値段 ${CLR.filter((c) => card.cost[c] > 0).map((c) => COLOR_LABEL[c] + card.cost[c]).join('・')}`;
   return `
-    <div class="card card--${card.bonus}" data-card="${card.id}" ${clickable ? '' : 'data-noclick'} aria-label="${label}">
-      <span class="card__pts">${card.points || ''}</span>
-      ${gemSvg(card.bonus)}
+    <div class="card card--lv${card.level} card--bonus-${card.bonus}" data-card="${card.id}" ${clickable ? '' : 'data-noclick'} aria-label="${label}">
+      ${card.points ? `<span class="card__pts">${card.points}</span>` : ''}
+      <span class="card__bonus">${gemSvg(card.bonus)}</span>
       <div class="card__cost">${cost}</div>
     </div>`;
+}
+// 山札（裏面）。レベルをローマ数字で出す。中身は見せない
+function deckHtml(level, count) {
+  return `<div class="deck deck--lv${level}" data-reserve-top="${level}">
+    <span class="deck__numeral">${ROMAN_BY_LEVEL[level]}</span>
+    <span class="deck__count">${count}</span>
+  </div>`;
 }
 function nobleHtml(id) {
   const n = NOBLE_BY_ID[id];
   // 条件はカードのシルエットに枚数を書いて並べる（貴族は買ったカードのボーナスで来るため）
   const req = CLR.filter((c) => n.req[c]).map((c) => `<span class="noble__card noble__card--${c}">${n.req[c]}</span>`).join('');
   const label = `貴族、${n.points}点。条件 ${CLR.filter((c) => n.req[c]).map((c) => COLOR_LABEL[c] + n.req[c] + '枚').join('・')}`;
-  return `<div class="noble" data-noble="${id}" aria-label="${label}"><div class="noble__pts">${n.points}</div><div class="noble__req">${req}</div></div>`;
+  return `<div class="noble" data-noble="${id}" aria-label="${label}">
+    <svg class="noble__crest" viewBox="0 0 100 100" aria-hidden="true"><use href="#crest"></use></svg>
+    <div class="noble__pts">${n.points}</div>
+    <div class="noble__req">${req}</div>
+  </div>`;
 }
 
 function render() {
@@ -391,7 +326,7 @@ function renderHome() {
   const playing = state && !state.result;
   stage.innerHTML = `
     <div class="home">
-      <div class="home__gems">${['white', 'blue', 'green', 'red', 'black'].map((c) => `<span class="card--${c}">${gemSvg(c)}</span>`).join('')}</div>
+      <div class="home__gems">${['white', 'blue', 'green', 'red', 'black'].map((c) => `<span class="gem-box gem-box--${c}">${gemSvg(c)}</span>`).join('')}</div>
       <h2 class="home__title">gem-trade</h2>
       <p class="home__hint">宝石を集めてカードを買い、先に15点をめざす。1 台を回して遊ぶ。</p>
       ${playing ? `<button class="pill pill--big" id="resume">つづきから（${state.numPlayers} 人）</button>` : ''}
@@ -474,7 +409,7 @@ function renderBoard() {
 
       ${[3, 2, 1].map((level) => `
         <div class="level">
-          <div class="deck" data-reserve-top="${level}">山札<br>${state.decks[level].length}</div>
+          ${deckHtml(level, state.decks[level].length)}
           <div class="level__cards">${state.board[level].map((id) => cardHtml(CARD_BY_ID[id])).join('')}</div>
         </div>`).join('')}
 
