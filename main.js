@@ -21,7 +21,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // ---- ここからアプリ本体 ----
-// 身内用の試作: 設定・効果音・共有演出・CPU は入れない（1 台を回して遊ぶホットシート）。
+// 身内用の試作: 設定・効果音・共有演出は入れない（1 台を回して遊ぶホットシート。テスト用の雑な CPU あり）。
 // data.js も素の <script>（同じトップレベルのスコープ）を使うので、同じ名前の const を
 // 二重に宣言できない（COLORS・CARDS・NOBLES は data.js 側の名前）。別名で受け取る。
 const GT = window.GEM_TRADE_DATA;
@@ -44,7 +44,7 @@ function shuffle(arr) {
 function emptyTokens() { return { white: 0, blue: 0, green: 0, red: 0, black: 0, gold: 0 }; }
 function sumTokens(t) { return CLR.reduce((s, c) => s + t[c], 0) + t.gold; }
 
-function newGame(numPlayers) {
+function newGame(numPlayers, numCpu = 0) {
   const perColor = TOKENS_PER_PLAYER_COUNT[numPlayers];
   const bank = emptyTokens();
   for (const c of CLR) bank[c] = perColor;
@@ -58,7 +58,8 @@ function newGame(numPlayers) {
   const nobles = shuffle(NOBLES.map((n) => n.id)).slice(0, numPlayers + 1);
 
   const players = Array.from({ length: numPlayers }, (_, i) => ({
-    name: `プレイヤー${i + 1}`,
+    cpu: i >= numPlayers - numCpu,
+    name: i >= numPlayers - numCpu ? `CPU${i - (numPlayers - numCpu) + 1}` : `プレイヤー${i + 1}`,
     tokens: emptyTokens(),
     bonuses: emptyTokens(),
     reserved: [],
@@ -376,6 +377,9 @@ function nobleHtml(id) {
 
 function render() {
   document.getElementById('go-home').hidden = view === 'home';
+  if (view === 'game' && state && !state.result && state.players[state.current].cpu && !cpuTimer) {
+    cpuTimer = setTimeout(() => { cpuTimer = null; if (view === 'game') cpuStep(); }, 700);
+  }
   if (view === 'home' || !state) { renderHome(); return; }
   if (state.result) { renderResult(); return; }
   if (state.pendingNoble) { renderNobleChoice(); return; }
@@ -395,11 +399,16 @@ function renderHome() {
       <div class="setup__players">
         ${[2, 3, 4].map((n) => `<button class="pill pill--big" data-new="${n}">${n} 人</button>`).join('')}
       </div>
+      <p class="home__label">CPU と遊ぶ（テスト用）</p>
+      <div class="setup__players">
+        ${[1, 2, 3].map((n) => `<button class="pill pill--big" data-new="${n + 1}" data-cpu="${n}">CPU ${n}</button>`).join('')}
+        <button class="pill pill--big" data-new="4" data-cpu="4">CPU だけ</button>
+      </div>
     </div>`;
   if (playing) document.getElementById('resume').addEventListener('click', () => { view = 'game'; render(); });
   stage.querySelectorAll('[data-new]').forEach((b) => b.addEventListener('click', () => {
     if (playing && !confirm('遊んでいる途中のゲームは消えます。新しく始めますか？')) return;
-    state = newGame(Number(b.dataset.new));
+    state = newGame(Number(b.dataset.new), Number(b.dataset.cpu || 0));
     view = 'game';
     persist();
   }));
@@ -530,6 +539,57 @@ function openCardSheet(cardId, level, isDeckTop, onBoard) {
 function closeSheet() {
   const sheet = document.getElementById('card-sheet');
   if (sheet) sheet.hidden = true;
+}
+
+// ---------- CPU（テスト用の雑な CPU） ----------
+// ponytail: 先読みなし。買えるなら一番点の高いカード、無理なら一番近いカードに要る色を取る。
+// 強くしたくなったら、貴族や相手の邪魔も点に入れる。
+let cpuTimer = null;
+
+function cpuMissing(card, p) {
+  const cost = effectiveCost(card, p);
+  return CLR.reduce((s, c) => s + Math.max(0, cost[c] - p.tokens[c]), 0) - p.tokens.gold;
+}
+function cpuCandidates(p) {
+  const board = [1, 2, 3].flatMap((lv) => state.board[lv].map((id) => ({ id, lv })));
+  return [...board, ...p.reserved.map((id) => ({ id, lv: null }))];
+}
+function cpuTarget(p) {
+  const score = (x) => cpuMissing(CARD_BY_ID[x.id], p) - CARD_BY_ID[x.id].points;
+  return cpuCandidates(p).sort((a, b) => score(a) - score(b))[0];
+}
+function cpuStep() {
+  const p = state.players[state.current];
+  if (state.pendingNoble) { chooseNoble(state.pendingNoble[0]); return; }
+  if (state.pendingDiscard) {
+    // 狙いのカードに要らない色から、多く持っている色から戻す
+    const t = cpuTarget(p);
+    const cost = t ? effectiveCost(CARD_BY_ID[t.id], p) : emptyTokens();
+    const spare = (c) => p.tokens[c] - (cost[c] || 0);
+    const c = CLR.filter((x) => p.tokens[x] > 0).sort((a, b) => spare(b) - spare(a))[0] || 'gold';
+    doDiscard(c);
+    return;
+  }
+  const buyable = cpuCandidates(p).filter((x) => canAfford(CARD_BY_ID[x.id], p));
+  if (buyable.length) {
+    const best = buyable.sort((a, b) => CARD_BY_ID[b.id].points - CARD_BY_ID[a.id].points)[0];
+    doBuy(best.id, best.lv);
+    return;
+  }
+  const t = cpuTarget(p);
+  const avail = CLR.filter((c) => state.bank[c] > 0);
+  // トークンがいっぱいで取れないときは予約して金をもらう
+  if ((sumTokens(p.tokens) >= 9 || !avail.length) && p.reserved.length < 3 && t && t.lv) { doReserve(t.id, t.lv); return; }
+  if (avail.length) {
+    const cost = t ? effectiveCost(CARD_BY_ID[t.id], p) : emptyTokens();
+    const need = (c) => cost[c] - p.tokens[c];
+    state.selection.take = avail.sort((a, b) => need(b) - need(a)).slice(0, 3);
+    doTake();
+    return;
+  }
+  // 何もできない: 手番を飛ばす
+  advanceTurn();
+  persist();
 }
 
 render();
