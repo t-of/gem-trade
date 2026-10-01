@@ -75,18 +75,6 @@ main { max-width: 760px; margin: 0 auto; position: relative; }
   border-radius: 14px;
   overflow: hidden;
 }
-.gem-box::after {
-  content: '';
-  position: absolute;
-  inset: -40%;
-  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.35) 50%, transparent 65%);
-  background-size: 220% 220%;
-  background-position: -120% -120%;
-  transition: background-position .6s ease;
-  pointer-events: none;
-}
-.gem-box:hover::after, .gem-box:focus-visible::after { background-position: 120% 120%; }
-@media (prefers-reduced-motion: reduce) { .gem-box::after { transition: none; } }
 
 .gem-box--lg { width: 96px; height: 96px; }
 .gem-box--sm { width: 24px; height: 24px; border-radius: 6px; }
@@ -199,18 +187,13 @@ main { max-width: 760px; margin: 0 auto; position: relative; }
 .card--bonus-black { --bonus-glow: rgba(120,120,130,.3); }
 .card--bonus-gold { --bonus-glow: rgba(230,180,60,.4); }
 
-.card__corner { position: absolute; width: 10px; height: 10px; background: linear-gradient(135deg, var(--gold-rim-1), var(--gold-rim-3)); transform: rotate(45deg); }
-.card__corner--tl { top: 10px; left: 10px; }
-.card__corner--tr { top: 10px; right: 10px; }
-.card__corner--bl { bottom: 42px; left: 10px; }
-.card__corner--br { bottom: 42px; right: 10px; }
 
 .card__pts {
   position: absolute; top: 8px; left: 14px;
   font-family: var(--font-number);
   font-weight: 700;
   font-variant-numeric: lining-nums;
-  font-size: 32px;
+  font-size: 52px;
   line-height: 1;
   color: #fff6d8;
   text-shadow: 0 2px 3px rgba(0,0,0,.85), 0 0 10px rgba(0,0,0,.6);
@@ -229,10 +212,10 @@ main { max-width: 760px; margin: 0 auto; position: relative; }
   font-family: var(--font-number);
   font-weight: 700;
   font-variant-numeric: lining-nums;
-  font-size: 19px;
+  font-size: 28px;
   color: #f5ead0;
   text-shadow: 0 1px 2px rgba(0,0,0,.8);
 }
-.card__cost-item .gem-box--sm { width: 22px; height: 22px; }
+.card__cost-item .gem-box--sm { width: 26px; height: 26px; }
 
 footer.note { margin-top: 32px; font-size: 12px; color: #8b8370; }
