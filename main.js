@@ -460,6 +460,7 @@ function renderBoard() {
 
   stage.innerHTML = `
     <div class="board">
+      <div class="board__main">
       <div class="nobles">${state.nobles.map(nobleHtml).join('')}</div>
 
       ${[3, 2, 1].map((level) => `
@@ -478,6 +479,7 @@ function renderBoard() {
       <div class="take-bar">
         <span class="muted">${availableColors.length < 3 ? '場に残る色が少ないので、取れる分だけ選べる' : '違う色を3枚、または同じ色を2枚（4枚以上あるとき）選ぶ'}</span>
         <button class="pill" id="take-go" ${takeValid ? '' : 'disabled'}>取る</button>
+      </div>
       </div>
 
       <div class="players">

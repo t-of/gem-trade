@@ -219,3 +219,9 @@ button { font: inherit; color: inherit; }
 .sheet__buttons { display: flex; gap: 8px; }
 
 /* 全画面のオーバーレイは opacity ではなく display: none で隠す */
+
+/* 広い画面: 左に場（貴族・カード・トークン）、右にプレイヤー。スマホ幅は縦に積む */
+@media (min-width: 640px) {
+  .board { display: grid; grid-template-columns: minmax(0, auto) minmax(220px, 320px); gap: 16px; align-items: start; justify-content: center; }
+  .board .players { padding-top: 6px; }
+}
