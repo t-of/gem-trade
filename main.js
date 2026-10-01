@@ -377,6 +377,7 @@ function renderBoard() {
         ${[...CLR, 'gold'].map((c) => `
           <button class="tok-btn ${c === 'gold' ? 'tok-btn--gold' : ''} ${sel.includes(c) ? 'tok-btn--sel' : ''}" data-take="${c}" ${c === 'gold' || state.bank[c] === 0 ? 'disabled' : ''}>
             ${tokenDot(c, state.bank[c])}
+            ${sel.filter((x) => x === c).length === 2 ? '<span class="tok-btn__x2">×2</span>' : ''}
           </button>`).join('')}
       </div>
       <div class="take-bar">

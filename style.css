@@ -114,7 +114,8 @@ button { font: inherit; color: inherit; }
 
 /* ---- トークンを取る ---- */
 .tokens { display: flex; justify-content: center; gap: 4px; padding: 8px 0 2px; }
-.tok-btn { border: none; background: none; padding: 4px; border-radius: 8px; }
+.tok-btn { position: relative; border: none; background: none; padding: 4px; border-radius: 8px; }
+.tok-btn__x2 { position: absolute; top: -6px; right: -6px; padding: 1px 5px; border-radius: 999px; background: #ffd35c; color: #222; font-size: 12px; font-weight: 700; }
 .tok-btn--sel { background: rgba(255, 211, 92, 0.3); }
 .tok-btn:disabled { opacity: 0.3; }
 .take-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 10px; }
