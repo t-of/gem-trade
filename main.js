@@ -269,22 +269,76 @@ function tokenDot(color, n) {
 function cardCostHtml(cost) {
   return CLR.filter((c) => cost[c] > 0).map((c) => tokenDot(c, cost[c])).join('') || '<span class="cost-free">無料</span>';
 }
-// カードの真ん中の宝石。色は CSS の .card--<色> の変数（--g1 明るい 〜 --g5 縁）で塗る。
-const GEM_SVG = `<svg class="gem" viewBox="0 0 200 185" aria-hidden="true">
-  <ellipse class="gem__shadow" cx="100" cy="180" rx="62" ry="5"></ellipse>
-  <polygon class="g1" points="60,30 20,75 70,75"></polygon>
-  <polygon class="g3" points="60,30 70,75 100,30"></polygon>
-  <polygon class="g2" points="100,30 70,75 130,75"></polygon>
-  <polygon class="g3" points="100,30 130,75 140,30"></polygon>
-  <polygon class="g4" points="140,30 130,75 180,75"></polygon>
-  <polygon class="g4" points="20,75 70,75 100,175"></polygon>
-  <polygon class="g3" points="70,75 130,75 100,175"></polygon>
-  <polygon class="g5" points="130,75 180,75 100,175"></polygon>
-  <polyline class="gem__edge" points="60,30 140,30 180,75 100,175 20,75 60,30"></polyline>
-  <line class="gem__edge" x1="20" y1="75" x2="180" y2="75"></line>
-  <path class="gem__shine" d="M150 18 l3 9 l9 3 l-9 3 l-3 9 l-3 -9 l-9 -3 l9 -3 z"></path>
-  <polygon class="gem__shine gem__shine--soft" points="66,36 52,58 64,58"></polygon>
-</svg>`;
+// カードの真ん中の宝石。色ごとに形を変える（白=ブリリアント、青=オーバル、緑=エメラルドカット、
+// 赤=クッション、黒=カボション）。色は CSS の .card--<色> の変数（--g1 明るい 〜 --g5 暗い）で塗る。
+// 面の座標は、光を左上に置いて面の向きで明るさを決めて作った。
+const GEM_SHAPES = {
+  white: `
+    <polygon class="g1" points="60,30 20,75 70,75"></polygon>
+    <polygon class="g3" points="60,30 70,75 100,30"></polygon>
+    <polygon class="g2" points="100,30 70,75 130,75"></polygon>
+    <polygon class="g3" points="100,30 130,75 140,30"></polygon>
+    <polygon class="g4" points="140,30 130,75 180,75"></polygon>
+    <polygon class="g4" points="20,75 70,75 100,175"></polygon>
+    <polygon class="g3" points="70,75 130,75 100,175"></polygon>
+    <polygon class="g5" points="130,75 180,75 100,175"></polygon>
+    <polyline class="gem__edge" points="60,30 140,30 180,75 100,175 20,75 60,30"></polyline>
+    <line class="gem__edge" x1="20" y1="75" x2="180" y2="75"></line>
+    <polygon class="gem__shine gem__shine--soft" points="66,36 52,58 64,58"></polygon>`,
+  blue: `
+    <polygon class="g2" points="100,10 124,16 145,33 123,62 100,50"></polygon>
+    <polygon class="g3" points="145,33 159,59 164,90 132,90 123,62"></polygon>
+    <polygon class="g5" points="164,90 159,121 145,147 123,118 132,90"></polygon>
+    <polygon class="g5" points="145,147 124,164 100,170 100,130 123,118"></polygon>
+    <polygon class="g4" points="100,170 76,164 55,147 77,118 100,130"></polygon>
+    <polygon class="g3" points="55,147 41,121 36,90 68,90 77,118"></polygon>
+    <polygon class="g1" points="36,90 41,59 55,33 77,62 68,90"></polygon>
+    <polygon class="g1" points="55,33 76,16 100,10 100,50 77,62"></polygon>
+    <polygon class="g2" points="100,50 123,62 132,90 123,118 100,130 77,118 68,90 77,62"></polygon>
+    <polygon class="gem__edge" points="100,10 124,16 145,33 159,59 164,90 159,121 145,147 124,164 100,170 76,164 55,147 41,121 36,90 41,59 55,33 76,16"></polygon>`,
+  green: `
+    <polygon class="g1" points="62,10 138,10 128,28 72,28"></polygon>
+    <polygon class="g2" points="138,10 160,32 144,44 128,28"></polygon>
+    <polygon class="g5" points="160,32 160,148 144,136 144,44"></polygon>
+    <polygon class="g5" points="160,148 138,170 128,152 144,136"></polygon>
+    <polygon class="g5" points="138,170 62,170 72,152 128,152"></polygon>
+    <polygon class="g4" points="62,170 40,148 56,136 72,152"></polygon>
+    <polygon class="g2" points="40,148 40,32 56,44 56,136"></polygon>
+    <polygon class="g1" points="40,32 62,10 72,28 56,44"></polygon>
+    <polygon class="g1" points="72,28 128,28 118,46 82,46"></polygon>
+    <polygon class="g2" points="128,28 144,44 128,56 118,46"></polygon>
+    <polygon class="g4" points="144,44 144,136 128,124 128,56"></polygon>
+    <polygon class="g4" points="144,136 128,152 118,134 128,124"></polygon>
+    <polygon class="g4" points="128,152 72,152 82,134 118,134"></polygon>
+    <polygon class="g3" points="72,152 56,136 72,124 82,134"></polygon>
+    <polygon class="g2" points="56,136 56,44 72,56 72,124"></polygon>
+    <polygon class="g1" points="56,44 72,28 82,46 72,56"></polygon>
+    <polygon class="g2" points="82,46 118,46 128,56 128,124 118,134 82,134 72,124 72,56"></polygon>
+    <polygon class="gem__edge" points="62,10 138,10 160,32 160,148 138,170 62,170 40,148 40,32"></polygon>`,
+  red: `
+    <polygon class="g2" points="100,18 145,21 161,29 127,63 100,56"></polygon>
+    <polygon class="g3" points="161,29 169,45 172,90 134,90 127,63"></polygon>
+    <polygon class="g5" points="172,90 169,135 161,151 127,117 134,90"></polygon>
+    <polygon class="g5" points="161,151 145,159 100,162 100,124 127,117"></polygon>
+    <polygon class="g4" points="100,162 55,159 39,151 73,117 100,124"></polygon>
+    <polygon class="g3" points="39,151 31,135 28,90 66,90 73,117"></polygon>
+    <polygon class="g1" points="28,90 31,45 39,29 73,63 66,90"></polygon>
+    <polygon class="g1" points="39,29 55,21 100,18 100,56 73,63"></polygon>
+    <polygon class="g2" points="100,56 127,63 134,90 127,117 100,124 73,117 66,90 73,63"></polygon>
+    <polygon class="gem__edge" points="100,18 145,21 161,29 169,45 172,90 169,135 161,151 145,159 100,162 55,159 39,151 31,135 28,90 31,45 39,29 55,21"></polygon>`,
+  black: `
+    <ellipse class="g5" cx="100" cy="92" rx="72" ry="72"></ellipse>
+    <ellipse class="g4" cx="94" cy="86" rx="62" ry="62"></ellipse>
+    <ellipse class="g3" cx="86" cy="76" rx="44" ry="42"></ellipse>
+    <ellipse class="g2" cx="78" cy="66" rx="22" ry="18" opacity="0.7"></ellipse>
+    <ellipse class="gem__edge" cx="100" cy="92" rx="72" ry="72"></ellipse>`
+};
+function gemSvg(color) {
+  return `<svg class="gem" viewBox="0 0 200 185" aria-hidden="true">
+    <ellipse class="gem__shadow" cx="100" cy="180" rx="62" ry="5"></ellipse>${GEM_SHAPES[color]}
+    <path class="gem__shine" d="M150 18 l3 9 l9 3 l-9 3 l-3 9 l-3 -9 l-9 -3 l9 -3 z"></path>
+  </svg>`;
+}
 function cardHtml(card, { clickable = true } = {}) {
   if (!card) return '<div class="card card--back"></div>';
   const cost = CLR.filter((c) => card.cost[c] > 0)
@@ -293,7 +347,7 @@ function cardHtml(card, { clickable = true } = {}) {
   return `
     <div class="card card--${card.bonus}" data-card="${card.id}" ${clickable ? '' : 'data-noclick'} aria-label="${label}">
       <span class="card__pts">${card.points || ''}</span>
-      ${GEM_SVG}
+      ${gemSvg(card.bonus)}
       <div class="card__cost">${cost}</div>
     </div>`;
 }
