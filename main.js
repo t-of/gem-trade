@@ -227,11 +227,9 @@ function afterAction() {
 function resolveNobleThenAdvance() {
   const player = state.players[state.current];
   const q = qualifyingNobles(player);
+  let fly = null;
   if (q.length === 1) {
-    player.points += NOBLE_BY_ID[q[0]].points;
-    (player.nobles ||= []).push(q[0]);
-    state.nobles = state.nobles.filter((id) => id !== q[0]);
-    SOUND.noble();
+    fly = giveNoble(q[0]);
   } else if (q.length > 1) {
     state.pendingNoble = q;
     persist();
@@ -240,17 +238,26 @@ function resolveNobleThenAdvance() {
   checkEndCondition();
   advanceTurn();
   persist();
+  fly?.();
 }
 function chooseNoble(id) {
-  const player = state.players[state.current];
-  player.points += NOBLE_BY_ID[id].points;
-  (player.nobles ||= []).push(id);
-  state.nobles = state.nobles.filter((n) => n !== id);
+  const fly = giveNoble(id);
   state.pendingNoble = null;
-  SOUND.noble();
   checkEndCondition();
   advanceTurn();
   persist();
+  fly();
+}
+// 今の手番の人に貴族を渡す。描き直したあとに呼ぶと、貴族がその人の欄へ飛ぶ関数を返す。
+function giveNoble(id) {
+  const idx = state.current;
+  const player = state.players[idx];
+  const fromRect = stage.querySelector(`[data-noble="${id}"]`)?.getBoundingClientRect();
+  player.points += NOBLE_BY_ID[id].points;
+  (player.nobles ||= []).push(id);
+  state.nobles = state.nobles.filter((n) => n !== id);
+  SOUND.noble();
+  return () => flyGhost(fromRect, playerRect(idx), nobleHtml(id));
 }
 function checkEndCondition() {
   const player = state.players[state.current];
