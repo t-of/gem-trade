@@ -384,6 +384,9 @@ h2, h3 { font-family: var(--font-jp); font-weight: 700; margin: 0 0 8px; }
 .player__head { display: flex; justify-content: space-between; }
 .player__pts { font-family: var(--font-number); font-variant-numeric: lining-nums; font-weight: 700; color: var(--accent); }
 .player__row { display: flex; flex-wrap: wrap; min-height: 24px; gap: 2px; align-items: center; }
+/* 宝石（26px）とコイン（28px）の列幅を 30px にそろえる。.slot は持っていない色の空き */
+.player__row .tok { margin: 1px 2px; }
+.slot { width: 30px; flex: none; }
 .player__reserved { display: flex; gap: 4px; flex-wrap: wrap; }
 .player__reserved--back { min-height: 40px; }
 

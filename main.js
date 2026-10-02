@@ -361,13 +361,19 @@ function renderDiscard() {
 }
 
 function playerSummary(p, idx, { isCurrent }) {
-  const bonusHtml = CLR.filter((c) => p.bonuses[c] > 0).map((c) => tokenDot(c, p.bonuses[c])).join('')
-    + p.nobles.map((id) => nobleHtml(id).replace('class="noble"', 'class="noble noble--mini"')).join('');
-  const tokenHtml = [...CLR, 'gold'].filter((c) => p.tokens[c] > 0).map((c) => coinHtml(c, p.tokens[c])).join('');
+  // 色ごとに列を固定する（持っていない色は空きにして、宝石とコインの同じ色を縦にそろえる）
+  const slot = '<span class="slot"></span>';
+  const bonusHtml = CLR.some((c) => p.bonuses[c] > 0) || p.nobles.length
+    ? CLR.map((c) => (p.bonuses[c] > 0 ? tokenDot(c, p.bonuses[c]) : slot)).join('') + slot
+    : '';
+  const noblesHtml = p.nobles.map((id) => nobleHtml(id).replace('class="noble"', 'class="noble noble--mini"')).join('');
+  const tokenHtml = [...CLR, 'gold'].some((c) => p.tokens[c] > 0)
+    ? [...CLR, 'gold'].map((c) => (p.tokens[c] > 0 ? coinHtml(c, p.tokens[c]) : slot)).join('')
+    : '';
   return `
     <div class="player ${isCurrent ? 'player--current' : ''}" data-player="${idx}">
       <div class="player__head"><strong>${p.name}</strong><span class="player__pts">${p.points} 点</span></div>
-      <div class="player__row">${bonusHtml || '<span class="muted">ボーナスなし</span>'}</div>
+      <div class="player__row">${bonusHtml + noblesHtml || '<span class="muted">ボーナスなし</span>'}</div>
       <div class="player__row">${tokenHtml || '<span class="muted">トークンなし</span>'}</div>
       ${isCurrent
         ? `<div class="player__reserved">${p.reserved.length ? p.reserved.map((r) => cardHtml(CARD_BY_ID[r.id])).join('') : '<span class="muted">予約なし</span>'}</div>`
