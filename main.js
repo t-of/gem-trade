@@ -229,6 +229,7 @@ function resolveNobleThenAdvance() {
   const q = qualifyingNobles(player);
   if (q.length === 1) {
     player.points += NOBLE_BY_ID[q[0]].points;
+    (player.nobles ||= []).push(q[0]);
     state.nobles = state.nobles.filter((id) => id !== q[0]);
     SOUND.noble();
   } else if (q.length > 1) {
@@ -243,6 +244,7 @@ function resolveNobleThenAdvance() {
 function chooseNoble(id) {
   const player = state.players[state.current];
   player.points += NOBLE_BY_ID[id].points;
+  (player.nobles ||= []).push(id);
   state.nobles = state.nobles.filter((n) => n !== id);
   state.pendingNoble = null;
   SOUND.noble();
@@ -515,7 +517,8 @@ function renderDiscard() {
 }
 
 function playerSummary(p, idx, { isCurrent }) {
-  const bonusHtml = CLR.filter((c) => p.bonuses[c] > 0).map((c) => tokenDot(c, p.bonuses[c])).join('');
+  const bonusHtml = CLR.filter((c) => p.bonuses[c] > 0).map((c) => tokenDot(c, p.bonuses[c])).join('')
+    + (p.nobles || []).map((id) => nobleHtml(id).replace('class="noble"', 'class="noble noble--mini"')).join('');
   const tokenHtml = [...CLR, 'gold'].filter((c) => p.tokens[c] > 0).map((c) => coinHtml(c, p.tokens[c])).join('');
   return `
     <div class="player ${isCurrent ? 'player--current' : ''}" data-player="${idx}">

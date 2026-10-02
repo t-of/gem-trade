@@ -233,6 +233,9 @@ h2, h3 { font-family: var(--font-jp); font-weight: 700; margin: 0 0 8px; }
   font-family: var(--font-number); font-weight: 700; font-variant-numeric: lining-nums; font-size: 26px; line-height: 1;
   color: #f6efe0; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
+.noble--mini { width: 36px; height: 36px; margin: 1px; padding: 1px; border-width: 1px; }
+.noble--mini .noble__pts { font-size: 17px; }
+.noble--mini .noble__req { display: none; }
 .noble__req { position: relative; display: flex; gap: 2px; justify-content: center; }
 .noble__card {
   width: 14px; height: 19px; border-radius: 2px; box-sizing: border-box;
