@@ -310,6 +310,7 @@ function renderHome() {
       <div class="setup__players">
         ${[1, 2, 3].map((n) => `<button class="pill pill--big" data-new="${n + 1}" data-cpu="${n}">CPU ${n}</button>`).join('')}
         <button class="pill pill--big" data-new="4" data-cpu="4">CPU だけ</button>
+        <button class="pill pill--big" data-new="2" data-cpu="2">強い CPU どうし</button>
       </div>
       <p class="home__label">CPU の速さ</p>
       <div class="setup__players">
@@ -454,14 +455,14 @@ function closeSheet() {
 }
 
 // ---------- CPU ----------
-// 人1 + CPU1 の2人戦は、思考に2秒かける ISMCTS（別スレッド）を使う。それ以外（3〜4人戦・CPUだけの
-// モード）は先読みなしの雑なCPU（cpu.js の simpleMove）のまま。今までの対戦相手として残している。
+// 2人戦（人1 + CPU1、強い CPU どうし）は、思考に2秒かける ISMCTS（別スレッド）を使う。それ以外（3〜4人戦・CPUだけの
+// 4人モード）は先読みなしの雑なCPU（cpu.js の simpleMove）のまま。今までの対戦相手として残している。
 let cpuTimer = null;
 let ismctsWorker = null;
 let ismctsReqId = 0;
 
 function isIsmctsGame(s) {
-  return s.numPlayers === 2 && s.players.filter((p) => p.cpu).length === 1;
+  return s.numPlayers === 2 && s.players.some((p) => p.cpu);
 }
 function requestIsmctsMove(s, viewerIdx, done) {
   try {
