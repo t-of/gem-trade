@@ -129,8 +129,11 @@ export function payFor(card, player) {
 }
 
 // ---- 手番の進行（state を直接書き換える内部関数。apply() の中だけで使う） ----
-function refillBoard(s, level) {
-  while (s.board[level].length < 4 && s.decks[level].length) s.board[level].push(s.decks[level].pop());
+// 場から取ったカードの場所に山札から補充する（山札が空なら詰める）
+function takeFromBoard(s, level, cardId) {
+  const idx = s.board[level].indexOf(cardId);
+  if (s.decks[level].length) s.board[level][idx] = s.decks[level].pop();
+  else s.board[level].splice(idx, 1);
 }
 function qualifyingNobles(s, player) {
   return s.nobles.filter((id) => {
@@ -228,9 +231,7 @@ export function apply(state, move) {
       let cardId = move.cardId;
       let hidden;
       if (cardId) {
-        const idx = s.board[move.level].indexOf(cardId);
-        s.board[move.level].splice(idx, 1);
-        refillBoard(s, move.level);
+        takeFromBoard(s, move.level, cardId);
         hidden = false;
       } else {
         cardId = s.decks[move.level].pop();
@@ -249,9 +250,7 @@ export function apply(state, move) {
       player.bought.push(move.cardId);
       player.points += card.points;
       if (move.fromBoard) {
-        const idx = s.board[move.fromBoard].indexOf(move.cardId);
-        s.board[move.fromBoard].splice(idx, 1);
-        refillBoard(s, move.fromBoard);
+        takeFromBoard(s, move.fromBoard, move.cardId);
       } else {
         player.reserved = player.reserved.filter((r) => r.id !== move.cardId);
       }

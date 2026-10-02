@@ -87,3 +87,11 @@ test('simpleMove・evaluate・ismctsMove が例外を投げずに合法手を返
     s = E.apply(s, simple);
   }
 });
+
+test('場から取ったカードの場所に補充される', () => {
+  const s = E.newGame(2, 0, Math.random);
+  const before = s.board[2].slice();
+  const top = s.decks[2].at(-1);
+  const after = E.apply(s, { type: 'reserve', level: 2, cardId: before[1] }).board[2];
+  assert.deepEqual(after, [before[0], top, before[2], before[3]]);
+});
