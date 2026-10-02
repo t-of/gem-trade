@@ -62,7 +62,7 @@ function shuffle(arr, rng) {
 export function clone(state) { return JSON.parse(JSON.stringify(state)); }
 
 // ---- 新しいゲーム ----
-export function newGame(numPlayers, numCpu = 0, rng = Math.random) {
+export function newGame(numPlayers, numCpu = 0, rng = Math.random, humanNames = []) {
   const perColor = TOKEN_COUNT_BY_PLAYERS[numPlayers];
   const bank = emptyTokens();
   for (const c of COLORS) bank[c] = perColor;
@@ -77,7 +77,7 @@ export function newGame(numPlayers, numCpu = 0, rng = Math.random) {
 
   const players = Array.from({ length: numPlayers }, (_, i) => ({
     cpu: i >= numPlayers - numCpu,
-    name: i >= numPlayers - numCpu ? `CPU${i - (numPlayers - numCpu) + 1}` : `プレイヤー${i + 1}`,
+    name: i >= numPlayers - numCpu ? `CPU${i - (numPlayers - numCpu) + 1}` : ((humanNames[i] || '').trim() || `プレイヤー${i + 1}`),
     tokens: emptyTokens(),
     bonuses: emptyTokens(),
     reserved: [],   // { id, level, hidden }。hidden = 山から伏せて取った（相手には見えない）

@@ -123,6 +123,18 @@ h2, h3 { font-family: var(--font-jp); font-weight: 700; margin: 0 0 8px; }
 .home__label { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
 .home .setup__players { flex-direction: row; justify-content: center; }
 .setup__players, .result { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.setup__names { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.setup__name {
+  width: 90px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: inherit;
+  text-align: center;
+}
+.setup__name::placeholder { color: var(--muted); }
 .pill--big { padding: 10px 24px; font-size: 16px; }
 .pill--ghost { background: transparent; }
 .pill--sel { background: rgba(255, 211, 92, 0.3); border-color: var(--accent); }

@@ -14,6 +14,11 @@ function save(key, value) {
   try { localStorage.setItem(STORE + key, JSON.stringify(value)); } catch { /* 保存できなくても遊べる */ }
 }
 
+// p.name は人が入力した文字列なので、innerHTML に入れる前に必ず通す。
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 WebAppKit.init({ title: 'gem-trade', text: '5色のトークンで発展カードを買い、貴族を迎えて点を競うボードゲームの試作。' });
 
 if ('serviceWorker' in navigator) {
@@ -294,6 +299,8 @@ function fitBoard() {
 }
 addEventListener('resize', fitBoard);
 
+// 人間プレイヤーの名前（最大4人ぶん。CPUの分は使わない）。次回も残す
+let playerNames = load('playerNames', []);
 function renderHome() {
   const playing = state && !state.result;
   stage.innerHTML = `
@@ -302,6 +309,10 @@ function renderHome() {
       <h2 class="home__title">gem-trade</h2>
       <p class="home__hint">宝石を集めてカードを買い、先に15点をめざす。1 台を回して遊ぶ。</p>
       ${playing ? `<button class="pill pill--big" id="resume">つづきから（${state.numPlayers} 人）</button>` : ''}
+      <p class="home__label">プレイヤーの名前（空なら既定の名前）</p>
+      <div class="setup__names">
+        ${[0, 1, 2, 3].map((i) => `<input class="setup__name" type="text" maxlength="10" placeholder="プレイヤー${i + 1}" data-name-idx="${i}" value="${escapeHtml(playerNames[i] || '')}">`).join('')}
+      </div>
       <p class="home__label">${playing ? '新しく始める' : '人数を選んで始める'}</p>
       <div class="setup__players">
         ${[2, 3, 4].map((n) => `<button class="pill pill--big" data-new="${n}">${n} 人</button>`).join('')}
@@ -318,9 +329,13 @@ function renderHome() {
       </div>
     </div>`;
   if (playing) document.getElementById('resume').addEventListener('click', () => { view = 'game'; render(); });
+  stage.querySelectorAll('[data-name-idx]').forEach((el) => el.addEventListener('input', () => {
+    playerNames[Number(el.dataset.nameIdx)] = el.value;
+    save('playerNames', playerNames);
+  }));
   stage.querySelectorAll('[data-new]').forEach((b) => b.addEventListener('click', () => {
     if (playing && !confirm('遊んでいる途中のゲームは消えます。新しく始めますか？')) return;
-    state = Engine.newGame(Number(b.dataset.new), Number(b.dataset.cpu || 0));
+    state = Engine.newGame(Number(b.dataset.new), Number(b.dataset.cpu || 0), Math.random, playerNames);
     view = 'game';
     persist();
   }));
@@ -332,7 +347,7 @@ function renderResult() {
     <div class="result">
       <h2>ゲーム終了</h2>
       <ol class="result__list">
-        ${names.map((p, rank) => `<li>${rank === 0 ? '🏆 ' : ''}${p.name} — ${p.points} 点（カード ${p.bought.length} 枚）</li>`).join('')}
+        ${names.map((p, rank) => `<li>${rank === 0 ? '🏆 ' : ''}${escapeHtml(p.name)} — ${p.points} 点（カード ${p.bought.length} 枚）</li>`).join('')}
       </ol>
       <button class="pill pill--big" id="again">もう一度遊ぶ</button>
     </div>`;
@@ -352,7 +367,7 @@ function renderDiscard() {
   const player = state.players[state.current];
   stage.innerHTML = `
     <div class="modal">
-      <h3>${player.name}: トークンを ${state.pendingDiscard.need} 枚戻す</h3>
+      <h3>${escapeHtml(player.name)}: トークンを ${state.pendingDiscard.need} 枚戻す</h3>
       <div class="modal__tokens">
         ${[...CLR, 'gold'].filter((c) => player.tokens[c] > 0).map((c) => `<button class="tok-btn" data-discard="${c}">${coinHtml(c, player.tokens[c])}</button>`).join('')}
       </div>
@@ -372,7 +387,7 @@ function playerSummary(p, idx, { isCurrent }) {
     : '';
   return `
     <div class="player ${isCurrent ? 'player--current' : ''}" data-player="${idx}">
-      <div class="player__head"><strong>${p.name}</strong><span class="player__pts">${p.points} 点</span></div>
+      <div class="player__head"><strong>${escapeHtml(p.name)}</strong><span class="player__pts">${p.points} 点</span></div>
       <div class="player__row">${bonusHtml + noblesHtml || '<span class="muted">ボーナスなし</span>'}</div>
       <div class="player__row">${tokenHtml || '<span class="muted">トークンなし</span>'}</div>
       ${isCurrent
