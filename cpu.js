@@ -55,33 +55,41 @@ export function simpleMove(s) {
 
 // ---------- 評価関数 ----------
 // 1人分の「強さ」。点数・永続する割引(bonuses)・トークン・貴族への近さ・買えそうなカードの近さを足す。
-// 重みは自己対戦（tools/arena.mjs）で雑に調整した目安値。厳密な最適化はしていない。
-function playerValue(s, idx) {
+// 重みは自己対戦（tools/arena.mjs の eval-vs-eval 山登り + ismcts デュプリケート戦）で調整した目安値。
+export const DEFAULT_WEIGHTS = {
+  points: 4,       // 1点あたり
+  tokenUp: 0.2,    // 持ちトークン1個あたり（8個まで）
+  tokenOver: 0.3,  // 9個目以降は逆に減点（戻す手間）
+  nobleNear: 0.5,  // 貴族の条件にどれだけ近いか（4 - 不足 を掛ける）
+  reach: 0.3,      // 一番買いやすいカードまでの近さ（cpuMissing - 点数*reachPoints）
+  reachPoints: 0.5,
+};
+function playerValue(s, idx, W) {
   const p = s.players[idx];
-  let v = p.points * 4;
+  let v = p.points * W.points;
   for (const c of COLORS) v += p.bonuses[c];
   const tokenTotal = sumTokens(p.tokens);
-  v += Math.min(tokenTotal, 8) * 0.2 - Math.max(0, tokenTotal - 8) * 0.3;
+  v += Math.min(tokenTotal, 8) * W.tokenUp - Math.max(0, tokenTotal - 8) * W.tokenOver;
   for (const nid of s.nobles) {
     const n = NOBLE_BY_ID[nid];
     const need = COLORS.reduce((sum, c) => sum + Math.max(0, (n.req[c] || 0) - p.bonuses[c]), 0);
-    v += Math.max(0, 4 - need) * 0.5;
+    v += Math.max(0, 4 - need) * W.nobleNear;
   }
   const candidates = [1, 2, 3].flatMap((lv) => s.board[lv].map((id) => CARD_BY_ID[id])).concat(p.reserved.map((r) => CARD_BY_ID[r.id]));
   let bestReach = Infinity;
   for (const card of candidates) {
-    const reach = cpuMissing(card, p) - card.points * 0.5;
+    const reach = cpuMissing(card, p) - card.points * W.reachPoints;
     if (reach < bestReach) bestReach = reach;
   }
-  if (bestReach !== Infinity) v -= Math.max(0, bestReach) * 0.3;
+  if (bestReach !== Infinity) v -= Math.max(0, bestReach) * W.reach;
   return v;
 }
 // 2人以上のどの人数でも使える: viewer 自身の値 - ほかの人の平均値
-export function evaluate(s, viewerIdx) {
-  const self = playerValue(s, viewerIdx);
+export function evaluate(s, viewerIdx, W = DEFAULT_WEIGHTS) {
+  const self = playerValue(s, viewerIdx, W);
   const others = s.players.map((_, i) => i).filter((i) => i !== viewerIdx);
   if (!others.length) return self;
-  return self - others.reduce((sum, i) => sum + playerValue(s, i), 0) / others.length;
+  return self - others.reduce((sum, i) => sum + playerValue(s, i, W), 0) / others.length;
 }
 
 // ---------- ISMCTS ----------
@@ -89,24 +97,24 @@ export function evaluate(s, viewerIdx) {
 // 毎回 determinize し直して数手の評価関数プレイアウトで採点する簡易版（flat MC + determinization）。
 // 2人戦の思考2秒ぶんには足りる強さが出ている（tools/arena.mjs で確認）。木を共有したくなったら、
 // 手の列をキーにノードを持つ本式のISMCTSに置き換える。
-function greedyMove(s, rng) {
+function greedyMove(s, rng, W) {
   const moves = legalMoves(s);
   if (moves.length === 1) return moves[0];
   const viewer = s.current;
   let best = -Infinity, bestM = moves[0];
   for (const m of moves) {
-    const sc = evaluate(apply(s, m), viewer);
+    const sc = evaluate(apply(s, m), viewer, W);
     if (sc > best) { best = sc; bestM = m; }
   }
   return bestM;
 }
-function rollout(s, viewerIdx, depth, rng) {
+function rollout(s, viewerIdx, depth, rng, W) {
   let cur = s;
-  for (let i = 0; i < depth && !isOver(cur); i++) cur = apply(cur, greedyMove(cur, rng));
-  return evaluate(cur, viewerIdx);
+  for (let i = 0; i < depth && !isOver(cur); i++) cur = apply(cur, greedyMove(cur, rng, W));
+  return evaluate(cur, viewerIdx, W);
 }
 export function ismctsMove(state, viewerIdx, opts = {}) {
-  const { timeLimitMs = 2000, maxIters = Infinity, rolloutDepth = 6, rng = Math.random } = opts;
+  const { timeLimitMs = 2000, maxIters = Infinity, rolloutDepth = 6, rng = Math.random, weights: W = DEFAULT_WEIGHTS } = opts;
   const moves = legalMoves(state);
   if (moves.length <= 1) return moves[0];
   const stats = moves.map(() => ({ n: 0, total: 0 }));
@@ -127,7 +135,7 @@ export function ismctsMove(state, viewerIdx, opts = {}) {
     const d = determinize(state, viewerIdx, rng);
     const s1 = apply(d, moves[mi]);
     stats[mi].n++;
-    stats[mi].total += rollout(s1, viewerIdx, rolloutDepth, rng);
+    stats[mi].total += rollout(s1, viewerIdx, rolloutDepth, rng, W);
     if (maxIters === Infinity && Date.now() - start >= timeLimitMs) break;
   }
   let best = -Infinity, bestI = 0;
