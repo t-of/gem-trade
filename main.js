@@ -21,7 +21,8 @@ if ('serviceWorker' in navigator) {
 }
 
 // ---- ここからアプリ本体 ----
-// 身内用の試作: 設定・効果音・共有演出は入れない（1 台を回して遊ぶホットシート。テスト用の雑な CPU あり）。
+// 身内用の試作（1 台を回して遊ぶホットシート。テスト用の雑な CPU あり）。
+// CPU の速さ・効果音・簡単な移動演出は入れてある。共有演出は入れない。
 // data.js も素の <script>（同じトップレベルのスコープ）を使うので、同じ名前の const を
 // 二重に宣言できない（COLORS・CARDS・NOBLES は data.js 側の名前）。別名で受け取る。
 const GT = window.GEM_TRADE_DATA;
@@ -92,6 +93,91 @@ function persist() { save('state', state); render(); }
 let view = 'home';
 document.getElementById('go-home').addEventListener('click', () => { view = 'home'; render(); });
 
+// ---------- CPU の速さ ----------
+const CPU_SPEEDS = [1400, 700, 250];
+const CPU_SPEED_LABEL = { 1400: 'おそい', 700: 'ふつう', 250: 'はやい' };
+let cpuSpeed = load('cpuSpeed', 700);
+function setCpuSpeed(ms) { cpuSpeed = ms; save('cpuSpeed', ms); updateToolbar(); render(); }
+function cycleCpuSpeed() { setCpuSpeed(CPU_SPEEDS[(CPU_SPEEDS.indexOf(cpuSpeed) + 1) % CPU_SPEEDS.length]); }
+
+// ---------- 効果音（WebAudio で合成。ファイルは使わない） ----------
+let muted = load('muted', false);
+let actx = null;
+// iPhone のマナーモードでも鳴らす（Safari 16.4 以降）。オフのときは 'auto' に戻し、ほかのアプリの音楽を止めない
+function setAudioSession(soundOn) {
+  try { if (navigator.audioSession) navigator.audioSession.type = soundOn ? 'playback' : 'auto'; } catch { /* 対応していない */ }
+}
+function ensureAudio() {
+  setAudioSession(!muted);
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+addEventListener('pointerdown', ensureAudio, { once: true });   // 最初のユーザー操作で AudioContext を作る
+function beep(freq, dur = 0.12, type = 'sine', gain = 0.15) {
+  if (muted) return;
+  try {
+    const ctx = ensureAudio();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(gain, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + dur);
+  } catch { /* 鳴らなくても遊べる */ }
+}
+const SOUND = {
+  take: () => beep(660, 0.1, 'sine', 0.12),
+  buy: () => beep(440, 0.18, 'triangle', 0.15),
+  reserve: () => beep(330, 0.15, 'square', 0.08),
+  noble: () => { beep(523, 0.15); setTimeout(() => beep(659, 0.2), 90); },
+  end: () => { beep(392, 0.2); setTimeout(() => beep(523, 0.25), 150); setTimeout(() => beep(659, 0.35), 300); },
+};
+
+// ---------- 移動演出（FLIP 風）----------
+// render() は innerHTML で全部描き直すので、動かす前に移動元の位置を取っておき、
+// 描き直した後に複製（.fly）を position:fixed で置いて Web Animations API で動かして消す。
+function reducedMotion() { return matchMedia('(prefers-reduced-motion: reduce)').matches; }
+function flyGhost(fromRect, toRect, innerHtml) {
+  if (!fromRect || !toRect || reducedMotion()) return;
+  const ghost = document.createElement('div');
+  ghost.className = 'fly';
+  ghost.innerHTML = innerHtml;
+  ghost.style.left = fromRect.left + 'px';
+  ghost.style.top = fromRect.top + 'px';
+  ghost.style.width = fromRect.width + 'px';
+  ghost.style.height = fromRect.height + 'px';
+  document.body.appendChild(ghost);
+  const dx = toRect.left + toRect.width / 2 - (fromRect.left + fromRect.width / 2);
+  const dy = toRect.top + toRect.height / 2 - (fromRect.top + fromRect.height / 2);
+  const anim = ghost.animate(
+    [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${dx}px, ${dy}px)`, opacity: 0.2 }],
+    { duration: 420, easing: 'ease-in-out' },
+  );
+  anim.onfinish = () => ghost.remove();
+}
+function playerRect(idx) {
+  const el = document.querySelector(`.players [data-player="${idx}"]`);
+  return el ? el.getBoundingClientRect() : null;
+}
+function bankCoinRect(color) {
+  const el = stage.querySelector(`[data-take="${color}"]`);
+  return el ? el.getBoundingClientRect() : null;
+}
+
+// ヘッダーの小さなボタン（速さの切り替え・ミュート）。render() の外（header は書き直さない）なので手で更新する
+const speedBtn = document.getElementById('speed-toggle');
+const muteBtn = document.getElementById('mute-toggle');
+function updateToolbar() {
+  speedBtn.textContent = CPU_SPEED_LABEL[cpuSpeed];
+  muteBtn.textContent = muted ? '🔇' : '🔊';
+  muteBtn.setAttribute('aria-label', muted ? '音を出す（今は消えている）' : '音を消す');
+}
+speedBtn.addEventListener('click', cycleCpuSpeed);
+muteBtn.addEventListener('click', () => { muted = !muted; save('muted', muted); setAudioSession(!muted); updateToolbar(); });
+updateToolbar();
+
 // ---------- ルールの判定 ----------
 
 function effectiveCost(card, player) {
@@ -144,6 +230,7 @@ function resolveNobleThenAdvance() {
   if (q.length === 1) {
     player.points += NOBLE_BY_ID[q[0]].points;
     state.nobles = state.nobles.filter((id) => id !== q[0]);
+    SOUND.noble();
   } else if (q.length > 1) {
     state.pendingNoble = q;
     persist();
@@ -158,6 +245,7 @@ function chooseNoble(id) {
   player.points += NOBLE_BY_ID[id].points;
   state.nobles = state.nobles.filter((n) => n !== id);
   state.pendingNoble = null;
+  SOUND.noble();
   checkEndCondition();
   advanceTurn();
   persist();
@@ -181,6 +269,7 @@ function endGame() {
     .sort((a, b) => b.p.points - a.p.points || a.p.bought.length - b.p.bought.length);
   state.result = ranked.map((r) => r.i);
   state.winner = state.result[0];
+  SOUND.end();
 }
 
 // ---------- 操作 ----------
@@ -188,13 +277,21 @@ function endGame() {
 function doTake() {
   const sel = state.selection.take;
   const player = state.players[state.current];
+  const buyerIdx = state.current;
+  const fromRects = sel.map((c) => bankCoinRect(c));
   for (const c of sel) { player.tokens[c]++; state.bank[c]--; }
   state.selection = { take: [], reserveTop: null };
+  SOUND.take();
   afterAction();
+  const toRect = playerRect(buyerIdx);
+  sel.forEach((c, i) => flyGhost(fromRects[i], toRect, coinHtml(c, '')));
 }
 function doReserve(cardId, fromLevel) {
   const player = state.players[state.current];
   if (player.reserved.length >= 3) return;
+  const buyerIdx = state.current;
+  const fromCardRect = (cardId ? stage.querySelector(`[data-card="${cardId}"]`) : stage.querySelector(`[data-reserve-top="${fromLevel}"]`))?.getBoundingClientRect();
+  const goldFromRect = state.bank.gold > 0 ? bankCoinRect('gold') : null;
   if (cardId) {
     const idx = state.board[fromLevel].indexOf(cardId);
     state.board[fromLevel].splice(idx, 1);
@@ -204,13 +301,24 @@ function doReserve(cardId, fromLevel) {
   }
   player.reserved.push(cardId);
   if (state.bank.gold > 0) { player.tokens.gold++; state.bank.gold--; }
+  SOUND.reserve();
   afterAction();
+  const toRect = playerRect(buyerIdx);
+  flyGhost(fromCardRect, toRect, '<div class="card card--back card--small"></div>');
+  flyGhost(goldFromRect, toRect, coinHtml('gold', ''));
 }
 function doBuy(cardId, fromBoardLevel) {
   const player = state.players[state.current];
   const card = CARD_BY_ID[cardId];
   if (!canAfford(card, player)) return;
+  const buyerIdx = state.current;
+  const cardFromRect = stage.querySelector(`[data-card="${cardId}"]`)?.getBoundingClientRect();
   const paid = payFor(card, player);
+  // ponytail: 払うトークンの移動演出は色ごとに1つ（同じ色を複数払うときも1つにまとめる）。数まで分けたくなったら増やす。
+  const payFromRects = {};
+  for (const c of [...CLR, 'gold']) {
+    if (paid[c] > 0) payFromRects[c] = stage.querySelector(`.players [data-player="${buyerIdx}"] .coin--${c}`)?.getBoundingClientRect();
+  }
   for (const c of CLR) { player.tokens[c] -= paid[c]; state.bank[c] += paid[c]; }
   player.tokens.gold -= paid.gold; state.bank.gold += paid.gold;
   player.bonuses[card.bonus]++;
@@ -223,7 +331,10 @@ function doBuy(cardId, fromBoardLevel) {
   } else {
     player.reserved = player.reserved.filter((id) => id !== cardId);
   }
+  SOUND.buy();
   afterAction();
+  flyGhost(cardFromRect, playerRect(buyerIdx), cardHtml(card, { clickable: false }));
+  for (const c of Object.keys(payFromRects)) flyGhost(payFromRects[c], bankCoinRect(c), coinHtml(c, ''));
 }
 function doDiscard(color) {
   const player = state.players[state.current];
@@ -314,7 +425,7 @@ function nobleHtml(id) {
 function render() {
   document.getElementById('go-home').hidden = view === 'home';
   if (view === 'game' && state && !state.result && state.players[state.current].cpu && !cpuTimer) {
-    cpuTimer = setTimeout(() => { cpuTimer = null; if (view === 'game') cpuStep(); }, 700);
+    cpuTimer = setTimeout(() => { cpuTimer = null; if (view === 'game') cpuStep(); }, cpuSpeed);
   }
   if (view === 'home' || !state) { renderHome(); return; }
   if (state.result) { renderResult(); return; }
@@ -355,6 +466,10 @@ function renderHome() {
         ${[1, 2, 3].map((n) => `<button class="pill pill--big" data-new="${n + 1}" data-cpu="${n}">CPU ${n}</button>`).join('')}
         <button class="pill pill--big" data-new="4" data-cpu="4">CPU だけ</button>
       </div>
+      <p class="home__label">CPU の速さ</p>
+      <div class="setup__players">
+        ${CPU_SPEEDS.map((ms) => `<button class="pill ${ms === cpuSpeed ? 'pill--sel' : ''}" data-speed="${ms}">${CPU_SPEED_LABEL[ms]}</button>`).join('')}
+      </div>
     </div>`;
   if (playing) document.getElementById('resume').addEventListener('click', () => { view = 'game'; render(); });
   stage.querySelectorAll('[data-new]').forEach((b) => b.addEventListener('click', () => {
@@ -363,6 +478,7 @@ function renderHome() {
     view = 'game';
     persist();
   }));
+  stage.querySelectorAll('[data-speed]').forEach((b) => b.addEventListener('click', () => setCpuSpeed(Number(b.dataset.speed))));
 }
 function renderResult() {
   const names = state.result.map((i) => state.players[i]);
@@ -402,7 +518,7 @@ function playerSummary(p, idx, { isCurrent }) {
   const bonusHtml = CLR.filter((c) => p.bonuses[c] > 0).map((c) => tokenDot(c, p.bonuses[c])).join('');
   const tokenHtml = [...CLR, 'gold'].filter((c) => p.tokens[c] > 0).map((c) => coinHtml(c, p.tokens[c])).join('');
   return `
-    <div class="player ${isCurrent ? 'player--current' : ''}">
+    <div class="player ${isCurrent ? 'player--current' : ''}" data-player="${idx}">
       <div class="player__head"><strong>${p.name}</strong><span class="player__pts">${p.points} 点</span></div>
       <div class="player__row">${bonusHtml || '<span class="muted">ボーナスなし</span>'}</div>
       <div class="player__row">${tokenHtml || '<span class="muted">トークンなし</span>'}</div>

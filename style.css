@@ -125,6 +125,10 @@ h2, h3 { font-family: var(--font-jp); font-weight: 700; margin: 0 0 8px; }
 .setup__players, .result { display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .pill--big { padding: 10px 24px; font-size: 16px; }
 .pill--ghost { background: transparent; }
+.pill--sel { background: rgba(255, 211, 92, 0.3); border-color: var(--accent); }
+
+/* 移動演出のための複製（FLIP 風）。元の要素の上に重ねて動かし、終わったら消す */
+.fly { position: fixed; z-index: 6; pointer-events: none; }
 .result__list { list-style: none; padding: 0; margin: 12px 0; text-align: left; display: inline-block; }
 .result__list li { padding: 4px 0; }
 
