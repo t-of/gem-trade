@@ -21,72 +21,30 @@ if ('serviceWorker' in navigator) {
 }
 
 // ---- ここからアプリ本体 ----
-// 身内用の試作（1 台を回して遊ぶホットシート。テスト用の雑な CPU あり）。
-// CPU の速さ・効果音・簡単な移動演出は入れてある。共有演出は入れない。
-// data.js も素の <script>（同じトップレベルのスコープ）を使うので、同じ名前の const を
-// 二重に宣言できない（COLORS・CARDS・NOBLES は data.js 側の名前）。別名で受け取る。
-const GT = window.GEM_TRADE_DATA;
-const CLR = GT.COLORS;
-const CARD_LIST = GT.CARDS;
-const NOBLE_LIST = GT.NOBLES;
-const TOKENS_PER_PLAYER_COUNT = GT.TOKEN_COUNT_BY_PLAYERS;
-const CARD_BY_ID = Object.fromEntries(CARD_LIST.map((c) => [c.id, c]));
-const NOBLE_BY_ID = Object.fromEntries(NOBLE_LIST.map((n) => [n.id, n]));
+// 身内用の試作（1 台を回して遊ぶホットシート）。ルールの判定は engine.js、CPU は cpu.js にある
+// （どちらも画面・音・保存に触らない純粋な関数）。main.js は呼ぶだけで、見た目・音・保存をする。
+import * as Engine from './engine.js';
+import * as CPU from './cpu.js';
+
+const CLR = Engine.COLORS;
+const COLOR_LABEL = Engine.COLOR_LABEL;
+const CARD_BY_ID = Engine.CARD_BY_ID;
+const NOBLE_BY_ID = Engine.NOBLE_BY_ID;
 const stage = document.getElementById('stage');
 
-function shuffle(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+// 古い保存形式（v1 以前）は reserved がカードidの配列だった。v2 は { id, level, hidden }。
+// hidden は分からないので「相手に見えない」側に倒す（伏せ予約だったことにする）。
+function migrateState(s) {
+  if (!s || s.v >= 2) return s;
+  for (const p of s.players) {
+    p.reserved = (p.reserved || []).map((r) => (typeof r === 'string' ? { id: r, level: CARD_BY_ID[r]?.level ?? 1, hidden: true } : r));
+    p.nobles = p.nobles || [];
   }
-  return a;
-}
-function emptyTokens() { return { white: 0, blue: 0, green: 0, red: 0, black: 0, gold: 0 }; }
-function sumTokens(t) { return CLR.reduce((s, c) => s + t[c], 0) + t.gold; }
-
-function newGame(numPlayers, numCpu = 0) {
-  const perColor = TOKENS_PER_PLAYER_COUNT[numPlayers];
-  const bank = emptyTokens();
-  for (const c of CLR) bank[c] = perColor;
-  bank.gold = 5;
-
-  const decks = { 1: [], 2: [], 3: [] };
-  for (const level of [1, 2, 3]) decks[level] = shuffle(CARDS.filter((c) => c.level === level).map((c) => c.id));
-  const board = { 1: [], 2: [], 3: [] };
-  for (const level of [1, 2, 3]) for (let i = 0; i < 4; i++) board[level].push(decks[level].pop());
-
-  const nobles = shuffle(NOBLES.map((n) => n.id)).slice(0, numPlayers + 1);
-
-  const players = Array.from({ length: numPlayers }, (_, i) => ({
-    cpu: i >= numPlayers - numCpu,
-    name: i >= numPlayers - numCpu ? `CPU${i - (numPlayers - numCpu) + 1}` : `プレイヤー${i + 1}`,
-    tokens: emptyTokens(),
-    bonuses: emptyTokens(),
-    reserved: [],
-    bought: [],
-    points: 0,
-  }));
-
-  return {
-    v: 1,
-    numPlayers,
-    players,
-    current: 0,
-    bank,
-    decks,
-    board,
-    nobles,
-    endAfter: null,     // 誰かが15点に届いたら 0（最初の人）。その回の最後の人まで回して終える
-    winner: null,
-    result: null,
-    pendingDiscard: null,  // { need: 戻す枚数 }
-    pendingNoble: null,    // 選べる貴族が2枚以上のときの候補 id 一覧
-    selection: { take: [], reserveTop: null }, // 選択中のトークン・予約操作
-  };
+  s.v = 2;
+  return s;
 }
 
-let state = load('state', null);
+let state = migrateState(load('state', null));
 
 function persist() { save('state', state); render(); }
 // 'home'（ホーム画面）か 'game'。開いたときはいつもホームから。保存はしない（遊び途中の state は残る）
@@ -178,211 +136,89 @@ speedBtn.addEventListener('click', cycleCpuSpeed);
 muteBtn.addEventListener('click', () => { muted = !muted; save('muted', muted); setAudioSession(!muted); updateToolbar(); });
 updateToolbar();
 
-// ---------- ルールの判定 ----------
+// ---------- 手を1つ進める ----------
+// 人の操作もCPUの手も、ここを通して engine.apply() に渡す。アニメーションに要る「動かす前の位置」は
+// 書き換える前に取っておき、書き換えたあとに飛ばす。
+let takeSel = [];   // 「取る」で選択中の色（画面だけの状態。engine の state には持たせない）
 
-function effectiveCost(card, player) {
-  const cost = {};
-  for (const c of CLR) cost[c] = Math.max(0, (card.cost[c] || 0) - player.bonuses[c]);
-  return cost;
-}
-function canAfford(card, player) {
-  const cost = effectiveCost(card, player);
-  let goldNeed = 0;
-  for (const c of CLR) goldNeed += Math.max(0, cost[c] - player.tokens[c]);
-  return goldNeed <= player.tokens.gold;
-}
-function payFor(card, player) {
-  const cost = effectiveCost(card, player);
-  const paid = emptyTokens();
-  let goldNeed = 0;
-  for (const c of CLR) {
-    const pay = Math.min(cost[c], player.tokens[c]);
-    paid[c] = pay;
-    goldNeed += cost[c] - pay;
-  }
-  paid.gold = goldNeed;
-  return paid;
-}
-function refillBoard(level) {
-  while (state.board[level].length < 4 && state.decks[level].length) state.board[level].push(state.decks[level].pop());
-}
-function qualifyingNobles(player) {
-  return state.nobles.filter((id) => {
-    const n = NOBLE_BY_ID[id];
-    return Object.entries(n.req).every(([c, need]) => player.bonuses[c] >= need);
-  });
-}
+function applyMove(move) {
+  const buyerIdx = state.current;
+  const wasOver = !!state.result;
+  const prevNobleCount = state.players[buyerIdx].nobles.length;
+  // 1枚だけ条件を満たす貴族は自動で迎える（engine.apply の中で起きる）ので、飛ばす先を先に控えておく
+  const nobleRectBefore = {};
+  for (const id of state.nobles) nobleRectBefore[id] = stage.querySelector(`[data-noble="${id}"]`)?.getBoundingClientRect();
 
-// ---------- 手番の進行 ----------
+  let afterFly = () => {};
+  if (move.type === 'take') {
+    const fromRects = move.colors.map((c) => bankCoinRect(c));
+    state = Engine.apply(state, move);
+    SOUND.take();
+    const toRect = playerRect(buyerIdx);
+    afterFly = () => move.colors.forEach((c, i) => flyGhost(fromRects[i], toRect, coinHtml(c, '')));
+  } else if (move.type === 'reserve') {
+    const fromCardRect = (move.cardId ? stage.querySelector(`[data-card="${move.cardId}"]`) : stage.querySelector(`[data-reserve-top="${move.level}"]`))?.getBoundingClientRect();
+    const goldFromRect = state.bank.gold > 0 ? bankCoinRect('gold') : null;
+    state = Engine.apply(state, move);
+    SOUND.reserve();
+    const toRect = playerRect(buyerIdx);
+    afterFly = () => { flyGhost(fromCardRect, toRect, '<div class="card card--back card--small"></div>'); flyGhost(goldFromRect, toRect, coinHtml('gold', '')); };
+  } else if (move.type === 'buy') {
+    const card = CARD_BY_ID[move.cardId];
+    const cardFromRect = stage.querySelector(`[data-card="${move.cardId}"]`)?.getBoundingClientRect();
+    const paid = Engine.payFor(card, state.players[buyerIdx]);
+    const payFromRects = {};
+    for (const c of [...CLR, 'gold']) if (paid[c] > 0) payFromRects[c] = stage.querySelector(`.players [data-player="${buyerIdx}"] .coin--${c}`)?.getBoundingClientRect();
+    state = Engine.apply(state, move);
+    SOUND.buy();
+    afterFly = () => { flyGhost(cardFromRect, playerRect(buyerIdx), cardHtml(card, { clickable: false })); for (const c of Object.keys(payFromRects)) flyGhost(payFromRects[c], bankCoinRect(c), coinHtml(c, '')); };
+  } else if (move.type === 'noble') {
+    const fromRect = stage.querySelector(`[data-noble="${move.id}"]`)?.getBoundingClientRect();
+    state = Engine.apply(state, move);
+    SOUND.noble();
+    afterFly = () => flyGhost(fromRect, playerRect(buyerIdx), nobleHtml(move.id));
+  } else {
+    state = Engine.apply(state, move);   // discard / pass: 動きはない
+  }
 
-function afterAction() {
-  const player = state.players[state.current];
-  if (sumTokens(player.tokens) > 10) {
-    state.pendingDiscard = { need: sumTokens(player.tokens) - 10 };
-    persist();
-    return;
+  const actor = state.players[buyerIdx];
+  if (move.type !== 'noble' && actor && actor.nobles.length > prevNobleCount) {
+    const gainedId = actor.nobles[actor.nobles.length - 1];
+    SOUND.noble();
+    const fromRect = nobleRectBefore[gainedId];
+    const prevAfterFly = afterFly;
+    afterFly = () => { prevAfterFly(); flyGhost(fromRect, playerRect(buyerIdx), nobleHtml(gainedId)); };
   }
-  resolveNobleThenAdvance();
-}
-function resolveNobleThenAdvance() {
-  const player = state.players[state.current];
-  const q = qualifyingNobles(player);
-  let fly = null;
-  if (q.length === 1) {
-    fly = giveNoble(q[0]);
-  } else if (q.length > 1) {
-    state.pendingNoble = q;
-    persist();
-    return;
-  }
-  checkEndCondition();
-  advanceTurn();
+  if (!wasOver && state.result) SOUND.end();
+
+  takeSel = [];
   persist();
-  fly?.();
-}
-function chooseNoble(id) {
-  const fly = giveNoble(id);
-  state.pendingNoble = null;
-  checkEndCondition();
-  advanceTurn();
-  persist();
-  fly();
-}
-// 今の手番の人に貴族を渡す。描き直したあとに呼ぶと、貴族がその人の欄へ飛ぶ関数を返す。
-function giveNoble(id) {
-  const idx = state.current;
-  const player = state.players[idx];
-  const fromRect = stage.querySelector(`[data-noble="${id}"]`)?.getBoundingClientRect();
-  player.points += NOBLE_BY_ID[id].points;
-  (player.nobles ||= []).push(id);
-  state.nobles = state.nobles.filter((n) => n !== id);
-  SOUND.noble();
-  return () => flyGhost(fromRect, playerRect(idx), nobleHtml(id));
-}
-function checkEndCondition() {
-  const player = state.players[state.current];
-  if (player.points >= 15 && state.endAfter === null) state.endAfter = 0;   // 全員の手番の数をそろえる
-}
-function advanceTurn() {
-  const next = (state.current + 1) % state.numPlayers;
-  if (state.endAfter !== null && next === state.endAfter) {
-    endGame();
-    return;
-  }
-  state.current = next;
-  state.selection = { take: [], reserveTop: null };
-}
-function endGame() {
-  const ranked = state.players
-    .map((p, i) => ({ i, p }))
-    .sort((a, b) => b.p.points - a.p.points || a.p.bought.length - b.p.bought.length);
-  state.result = ranked.map((r) => r.i);
-  state.winner = state.result[0];
-  SOUND.end();
-}
-
-// ---------- 操作 ----------
-
-function doTake() {
-  const sel = state.selection.take;
-  const player = state.players[state.current];
-  const buyerIdx = state.current;
-  const fromRects = sel.map((c) => bankCoinRect(c));
-  for (const c of sel) { player.tokens[c]++; state.bank[c]--; }
-  state.selection = { take: [], reserveTop: null };
-  SOUND.take();
-  afterAction();
-  const toRect = playerRect(buyerIdx);
-  sel.forEach((c, i) => flyGhost(fromRects[i], toRect, coinHtml(c, '')));
-}
-function doReserve(cardId, fromLevel) {
-  const player = state.players[state.current];
-  if (player.reserved.length >= 3) return;
-  const buyerIdx = state.current;
-  const fromCardRect = (cardId ? stage.querySelector(`[data-card="${cardId}"]`) : stage.querySelector(`[data-reserve-top="${fromLevel}"]`))?.getBoundingClientRect();
-  const goldFromRect = state.bank.gold > 0 ? bankCoinRect('gold') : null;
-  if (cardId) {
-    const idx = state.board[fromLevel].indexOf(cardId);
-    state.board[fromLevel].splice(idx, 1);
-    refillBoard(fromLevel);
-  } else {
-    cardId = state.decks[fromLevel].pop();
-  }
-  player.reserved.push(cardId);
-  if (state.bank.gold > 0) { player.tokens.gold++; state.bank.gold--; }
-  SOUND.reserve();
-  afterAction();
-  const toRect = playerRect(buyerIdx);
-  flyGhost(fromCardRect, toRect, '<div class="card card--back card--small"></div>');
-  flyGhost(goldFromRect, toRect, coinHtml('gold', ''));
-}
-function doBuy(cardId, fromBoardLevel) {
-  const player = state.players[state.current];
-  const card = CARD_BY_ID[cardId];
-  if (!canAfford(card, player)) return;
-  const buyerIdx = state.current;
-  const cardFromRect = stage.querySelector(`[data-card="${cardId}"]`)?.getBoundingClientRect();
-  const paid = payFor(card, player);
-  // ponytail: 払うトークンの移動演出は色ごとに1つ（同じ色を複数払うときも1つにまとめる）。数まで分けたくなったら増やす。
-  const payFromRects = {};
-  for (const c of [...CLR, 'gold']) {
-    if (paid[c] > 0) payFromRects[c] = stage.querySelector(`.players [data-player="${buyerIdx}"] .coin--${c}`)?.getBoundingClientRect();
-  }
-  for (const c of CLR) { player.tokens[c] -= paid[c]; state.bank[c] += paid[c]; }
-  player.tokens.gold -= paid.gold; state.bank.gold += paid.gold;
-  player.bonuses[card.bonus]++;
-  player.bought.push(cardId);
-  player.points += card.points;
-  if (fromBoardLevel) {
-    const idx = state.board[fromBoardLevel].indexOf(cardId);
-    state.board[fromBoardLevel].splice(idx, 1);
-    refillBoard(fromBoardLevel);
-  } else {
-    player.reserved = player.reserved.filter((id) => id !== cardId);
-  }
-  SOUND.buy();
-  afterAction();
-  flyGhost(cardFromRect, playerRect(buyerIdx), cardHtml(card, { clickable: false }));
-  for (const c of Object.keys(payFromRects)) flyGhost(payFromRects[c], bankCoinRect(c), coinHtml(c, ''));
-}
-function doDiscard(color) {
-  const player = state.players[state.current];
-  if (player.tokens[color] <= 0) return;
-  player.tokens[color]--; state.bank[color]++;
-  state.pendingDiscard.need--;
-  if (state.pendingDiscard.need <= 0) {
-    state.pendingDiscard = null;
-    resolveNobleThenAdvance();
-  } else {
-    persist();
-  }
+  afterFly();
 }
 
 // ---------- 取る操作の選択状態 ----------
 
 // 選択は色の配列。同じ色だけが2つなら「同じ色を2枚」、違う色が並べば「違う色を3枚」とみなす。
 function toggleTakeColor(color) {
-  const sel = state.selection.take;
-  if (sel.length && sel.every((c) => c === color)) {
+  if (takeSel.length && takeSel.every((c) => c === color)) {
     // 同じ色を積み増す（2枚まで。4枚以上あるときだけ）
-    if (sel.length < 2 && state.bank[color] >= 4) sel.push(color);
-    else state.selection.take = [];   // これ以上は積めない → 選び直し
-  } else if (sel.includes(color)) {
-    state.selection.take = sel.filter((c) => c !== color);   // 選択を外す
+    if (takeSel.length < 2 && state.bank[color] >= 4) takeSel.push(color);
+    else takeSel = [];   // これ以上は積めない → 選び直し
+  } else if (takeSel.includes(color)) {
+    takeSel = takeSel.filter((c) => c !== color);   // 選択を外す
   } else {
-    if (sel.length === 2 && sel[0] === sel[1]) return;   // 同じ色2枚の途中に別の色は足せない
-    if (sel.length >= 3) return;
-    sel.push(color);
+    if (takeSel.length === 2 && takeSel[0] === takeSel[1]) return;   // 同じ色2枚の途中に別の色は足せない
+    if (takeSel.length >= 3) return;
+    takeSel.push(color);
   }
   render();
 }
 function selectionIsValid() {
-  const sel = state.selection.take;
-  if (sel.length === 0) return false;
-  const uniq = new Set(sel);
-  if (uniq.size === 1) return sel.length === 2 && state.bank[sel[0]] >= 4;
+  if (takeSel.length === 0) return false;
+  const uniq = new Set(takeSel);
+  if (uniq.size === 1) return takeSel.length === 2 && state.bank[takeSel[0]] >= 4;
   const availableColors = CLR.filter((c) => state.bank[c] > 0).length;
-  return sel.length === Math.min(3, availableColors) && uniq.size === sel.length;
+  return takeSel.length === Math.min(3, availableColors) && uniq.size === takeSel.length;
 }
 
 // ---------- 画面 ----------
@@ -470,7 +306,7 @@ function renderHome() {
       <div class="setup__players">
         ${[2, 3, 4].map((n) => `<button class="pill pill--big" data-new="${n}">${n} 人</button>`).join('')}
       </div>
-      <p class="home__label">CPU と遊ぶ（テスト用）</p>
+      <p class="home__label">CPU と遊ぶ</p>
       <div class="setup__players">
         ${[1, 2, 3].map((n) => `<button class="pill pill--big" data-new="${n + 1}" data-cpu="${n}">CPU ${n}</button>`).join('')}
         <button class="pill pill--big" data-new="4" data-cpu="4">CPU だけ</button>
@@ -483,7 +319,7 @@ function renderHome() {
   if (playing) document.getElementById('resume').addEventListener('click', () => { view = 'game'; render(); });
   stage.querySelectorAll('[data-new]').forEach((b) => b.addEventListener('click', () => {
     if (playing && !confirm('遊んでいる途中のゲームは消えます。新しく始めますか？')) return;
-    state = newGame(Number(b.dataset.new), Number(b.dataset.cpu || 0));
+    state = Engine.newGame(Number(b.dataset.new), Number(b.dataset.cpu || 0));
     view = 'game';
     persist();
   }));
@@ -508,7 +344,7 @@ function renderNobleChoice() {
       <h3>迎える貴族を選ぶ</h3>
       <div class="modal__nobles">${state.pendingNoble.map(nobleHtml).join('')}</div>
     </div>`;
-  stage.querySelectorAll('[data-noble]').forEach((el) => el.addEventListener('click', () => chooseNoble(el.dataset.noble)));
+  stage.querySelectorAll('[data-noble]').forEach((el) => el.addEventListener('click', () => applyMove({ type: 'noble', id: el.dataset.noble })));
 }
 
 function renderDiscard() {
@@ -520,12 +356,12 @@ function renderDiscard() {
         ${[...CLR, 'gold'].filter((c) => player.tokens[c] > 0).map((c) => `<button class="tok-btn" data-discard="${c}">${coinHtml(c, player.tokens[c])}</button>`).join('')}
       </div>
     </div>`;
-  stage.querySelectorAll('[data-discard]').forEach((el) => el.addEventListener('click', () => doDiscard(el.dataset.discard)));
+  stage.querySelectorAll('[data-discard]').forEach((el) => el.addEventListener('click', () => applyMove({ type: 'discard', color: el.dataset.discard })));
 }
 
 function playerSummary(p, idx, { isCurrent }) {
   const bonusHtml = CLR.filter((c) => p.bonuses[c] > 0).map((c) => tokenDot(c, p.bonuses[c])).join('')
-    + (p.nobles || []).map((id) => nobleHtml(id).replace('class="noble"', 'class="noble noble--mini"')).join('');
+    + p.nobles.map((id) => nobleHtml(id).replace('class="noble"', 'class="noble noble--mini"')).join('');
   const tokenHtml = [...CLR, 'gold'].filter((c) => p.tokens[c] > 0).map((c) => coinHtml(c, p.tokens[c])).join('');
   return `
     <div class="player ${isCurrent ? 'player--current' : ''}" data-player="${idx}">
@@ -533,7 +369,7 @@ function playerSummary(p, idx, { isCurrent }) {
       <div class="player__row">${bonusHtml || '<span class="muted">ボーナスなし</span>'}</div>
       <div class="player__row">${tokenHtml || '<span class="muted">トークンなし</span>'}</div>
       ${isCurrent
-        ? `<div class="player__reserved">${p.reserved.length ? p.reserved.map((id) => cardHtml(CARD_BY_ID[id])).join('') : '<span class="muted">予約なし</span>'}</div>`
+        ? `<div class="player__reserved">${p.reserved.length ? p.reserved.map((r) => cardHtml(CARD_BY_ID[r.id])).join('') : '<span class="muted">予約なし</span>'}</div>`
         : `<div class="player__reserved player__reserved--back">${p.reserved.map(() => '<div class="card card--back card--small"></div>').join('')}</div>`}
     </div>`;
 }
@@ -541,7 +377,6 @@ function playerSummary(p, idx, { isCurrent }) {
 function renderBoard() {
   const player = state.players[state.current];
   const availableColors = CLR.filter((c) => state.bank[c] > 0);
-  const sel = state.selection.take;
   const takeValid = selectionIsValid();
 
   stage.innerHTML = `
@@ -557,9 +392,9 @@ function renderBoard() {
 
       <div class="tokens">
         ${[...CLR, 'gold'].map((c) => `
-          <button class="tok-btn ${c === 'gold' ? 'tok-btn--gold' : ''} ${sel.includes(c) ? 'tok-btn--sel' : ''}" data-take="${c}" ${c === 'gold' || state.bank[c] === 0 ? 'disabled' : ''}>
+          <button class="tok-btn ${c === 'gold' ? 'tok-btn--gold' : ''} ${takeSel.includes(c) ? 'tok-btn--sel' : ''}" data-take="${c}" ${c === 'gold' || state.bank[c] === 0 ? 'disabled' : ''}>
             ${coinHtml(c, state.bank[c])}
-            ${sel.filter((x) => x === c).length === 2 ? '<span class="tok-btn__x2">×2</span>' : ''}
+            ${takeSel.filter((x) => x === c).length === 2 ? '<span class="tok-btn__x2">×2</span>' : ''}
           </button>`).join('')}
       </div>
       <div class="take-bar">
@@ -576,7 +411,7 @@ function renderBoard() {
     <div class="sheet" id="card-sheet" hidden></div>`;
 
   stage.querySelectorAll('[data-take]').forEach((b) => !b.disabled && b.addEventListener('click', () => toggleTakeColor(b.dataset.take)));
-  document.getElementById('take-go').addEventListener('click', doTake);
+  document.getElementById('take-go').addEventListener('click', () => applyMove({ type: 'take', colors: takeSel.slice() }));
   stage.querySelectorAll('[data-reserve-top]').forEach((b) => b.addEventListener('click', () => {
     const level = Number(b.dataset.reserveTop);
     if (state.decks[level].length === 0 || player.reserved.length >= 3) return;
@@ -595,7 +430,7 @@ function openCardSheet(cardId, level, isDeckTop, onBoard) {
   const card = cardId ? CARD_BY_ID[cardId] : null;
   const sheet = document.getElementById('card-sheet');
   const fromBoard = onBoard === true;
-  const canBuy = card && canAfford(card, player);
+  const canBuy = card && Engine.canAfford(card, player);
   const canReserve = player.reserved.length < 3 && (isDeckTop || fromBoard);
   sheet.hidden = false;
   sheet.innerHTML = `
@@ -609,64 +444,47 @@ function openCardSheet(cardId, level, isDeckTop, onBoard) {
     </div>`;
   document.getElementById('sheet-close').addEventListener('click', closeSheet);
   const buyBtn = document.getElementById('sheet-buy');
-  if (buyBtn) buyBtn.addEventListener('click', () => { closeSheet(); doBuy(cardId, fromBoard ? level : null); });
+  if (buyBtn) buyBtn.addEventListener('click', () => { closeSheet(); applyMove({ type: 'buy', cardId, fromBoard: fromBoard ? level : null }); });
   const reserveBtn = document.getElementById('sheet-reserve');
-  if (reserveBtn) reserveBtn.addEventListener('click', () => { closeSheet(); doReserve(fromBoard ? cardId : null, level); });
+  if (reserveBtn) reserveBtn.addEventListener('click', () => { closeSheet(); applyMove({ type: 'reserve', level, cardId: fromBoard ? cardId : null }); });
 }
 function closeSheet() {
   const sheet = document.getElementById('card-sheet');
   if (sheet) sheet.hidden = true;
 }
 
-// ---------- CPU（テスト用の雑な CPU） ----------
-// ponytail: 先読みなし。買えるなら一番点の高いカード、無理なら一番近いカードに要る色を取る。
-// 強くしたくなったら、貴族や相手の邪魔も点に入れる。
+// ---------- CPU ----------
+// 人1 + CPU1 の2人戦は、思考に2秒かける ISMCTS（別スレッド）を使う。それ以外（3〜4人戦・CPUだけの
+// モード）は先読みなしの雑なCPU（cpu.js の simpleMove）のまま。今までの対戦相手として残している。
 let cpuTimer = null;
+let ismctsWorker = null;
+let ismctsReqId = 0;
 
-function cpuMissing(card, p) {
-  const cost = effectiveCost(card, p);
-  return CLR.reduce((s, c) => s + Math.max(0, cost[c] - p.tokens[c]), 0) - p.tokens.gold;
+function isIsmctsGame(s) {
+  return s.numPlayers === 2 && s.players.filter((p) => p.cpu).length === 1;
 }
-function cpuCandidates(p) {
-  const board = [1, 2, 3].flatMap((lv) => state.board[lv].map((id) => ({ id, lv })));
-  return [...board, ...p.reserved.map((id) => ({ id, lv: null }))];
-}
-function cpuTarget(p) {
-  const score = (x) => cpuMissing(CARD_BY_ID[x.id], p) - CARD_BY_ID[x.id].points;
-  return cpuCandidates(p).sort((a, b) => score(a) - score(b))[0];
+function requestIsmctsMove(s, viewerIdx, done) {
+  try {
+    if (!ismctsWorker && typeof Worker !== 'undefined') ismctsWorker = new Worker('./worker.js', { type: 'module' });
+  } catch { ismctsWorker = null; }
+  if (!ismctsWorker) { done(CPU.ismctsMove(s, viewerIdx, { timeLimitMs: 2000 })); return; }
+  const id = ++ismctsReqId;
+  const onMsg = (e) => {
+    if (e.data.id !== id) return;
+    ismctsWorker.removeEventListener('message', onMsg);
+    done(e.data.move || CPU.simpleMove(s));
+  };
+  ismctsWorker.addEventListener('message', onMsg);
+  ismctsWorker.addEventListener('error', () => { ismctsWorker = null; done(CPU.simpleMove(s)); }, { once: true });
+  ismctsWorker.postMessage({ id, state: s, viewerIdx, opts: { timeLimitMs: 2000 } });
 }
 function cpuStep() {
-  const p = state.players[state.current];
-  if (state.pendingNoble) { chooseNoble(state.pendingNoble[0]); return; }
-  if (state.pendingDiscard) {
-    // 狙いのカードに要らない色から、多く持っている色から戻す
-    const t = cpuTarget(p);
-    const cost = t ? effectiveCost(CARD_BY_ID[t.id], p) : emptyTokens();
-    const spare = (c) => p.tokens[c] - (cost[c] || 0);
-    const c = CLR.filter((x) => p.tokens[x] > 0).sort((a, b) => spare(b) - spare(a))[0] || 'gold';
-    doDiscard(c);
+  const g = state;
+  if (isIsmctsGame(g) && !g.pendingDiscard && !g.pendingNoble) {
+    requestIsmctsMove(g, g.current, (move) => { if (state === g) applyMove(move); });
     return;
   }
-  const buyable = cpuCandidates(p).filter((x) => canAfford(CARD_BY_ID[x.id], p));
-  if (buyable.length) {
-    const best = buyable.sort((a, b) => CARD_BY_ID[b.id].points - CARD_BY_ID[a.id].points)[0];
-    doBuy(best.id, best.lv);
-    return;
-  }
-  const t = cpuTarget(p);
-  const avail = CLR.filter((c) => state.bank[c] > 0);
-  // トークンがいっぱいで取れないときは予約して金をもらう
-  if ((sumTokens(p.tokens) >= 9 || !avail.length) && p.reserved.length < 3 && t && t.lv) { doReserve(t.id, t.lv); return; }
-  if (avail.length) {
-    const cost = t ? effectiveCost(CARD_BY_ID[t.id], p) : emptyTokens();
-    const need = (c) => cost[c] - p.tokens[c];
-    state.selection.take = avail.sort((a, b) => need(b) - need(a)).slice(0, 3);
-    doTake();
-    return;
-  }
-  // 何もできない: 手番を飛ばす
-  advanceTurn();
-  persist();
+  applyMove(CPU.simpleMove(g));
 }
 
 render();
