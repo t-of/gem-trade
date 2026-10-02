@@ -271,8 +271,9 @@ function selectionIsValid() {
 function coinHtml(color, n) {
   return `<span class="coin coin--${color}">${gemSvg(color)}<span class="coin__n">${n}</span></span>`;
 }
+// 獲得したカード（ボーナス）。縦長の小さなカードに宝石と枚数を描く。
 function tokenDot(color, n) {
-  return `<span class="tok tok--${color}"><span class="tok__n">${n}</span></span>`;
+  return `<span class="tok tok--${color}">${gemSvg(color)}<span class="tok__n">${n}</span></span>`;
 }
 // 宝石の絵。index.html の <symbol id="gem-xxx"> を <use> で呼ぶだけ（中身は共通化して軽くする）。
 function gemSvg(color) {

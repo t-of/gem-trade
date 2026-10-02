@@ -194,21 +194,20 @@ h2, h3 { font-family: var(--font-jp); font-weight: 700; margin: 0 0 8px; }
 /* 貴族の紋章（盾＋王冠）。シンプルな線画、色は金 */
 .crest__shield, .crest__crown { fill: none; stroke: var(--gold-rim-2); stroke-width: 3; stroke-linejoin: round; }
 
-/* ---- トークン（ボーナスの数。宝石の絵は持たないので丸に数字だけ） ---- */
+/* ---- 獲得したカード（ボーナス）: 縦長の小さなカードに宝石と枚数 ---- */
 .tok {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 50%;
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: space-between;
+  width: 26px; height: 36px; margin: 1px; padding: 3px 0 2px; box-sizing: border-box; border-radius: 4px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, .22), transparent 55%), var(--t-bg);
+  border: 1px solid var(--gold-rim-2); box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
   font-family: var(--font-number); font-variant-numeric: lining-nums;
-  font-size: 13px; font-weight: 700; color: #1c2333;
-  margin: 1px;
+  font-size: 13px; font-weight: 700; line-height: 1; color: #fff6d8;
 }
-.tok--white { background: #dde6f2; }
-.tok--blue { background: #3f6ad6; color: #eceef3; }
-.tok--green { background: #1c8a4a; color: #eceef3; }
-.tok--red { background: #c8283a; color: #eceef3; }
-.tok--black { background: #3a3a44; color: #eceef3; }
-.tok--gold { background: var(--accent); }
-.tok__n { pointer-events: none; }
+.tok .gem { width: 17px; height: 17px; }
+.tok .gem__shadow { display: none; }
+.tok--red { --t-bg: #8a1322; } .tok--blue { --t-bg: #13265e; } .tok--green { --t-bg: #0c4a28; }
+.tok--white { --t-bg: #cdd6e2; } .tok--black { --t-bg: #141418; }
+.tok__n { pointer-events: none; text-shadow: 0 0 2px #000, 0 0 2px #000; }
 .cost-free { font-size: 11px; color: var(--muted); }
 
 /* ---- 貴族 ---- */
@@ -377,7 +376,7 @@ h2, h3 { font-family: var(--font-jp); font-weight: 700; margin: 0 0 8px; }
 .player--current { background: rgba(255, 211, 92, 0.12); border: 1px solid rgba(255, 211, 92, 0.4); }
 .player__head { display: flex; justify-content: space-between; }
 .player__pts { font-family: var(--font-number); font-variant-numeric: lining-nums; font-weight: 700; color: var(--accent); }
-.player__row { display: flex; flex-wrap: wrap; min-height: 24px; align-items: center; }
+.player__row { display: flex; flex-wrap: wrap; min-height: 24px; gap: 2px; align-items: center; }
 .player__reserved { display: flex; gap: 4px; flex-wrap: wrap; }
 .player__reserved--back { min-height: 40px; }
 
